@@ -1,0 +1,1 @@
+ALTER TABLE "tags" ADD CONSTRAINT "tags_title_unique" UNIQUE("title");

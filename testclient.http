@@ -1,0 +1,12 @@
+
+@baseUrl=http://localhost:3005/v3.0
+@taskId=466
+
+@accessToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEwLCJpYXQiOjE3MzExMTc4MzEsImV4cCI6MTczMzcwOTgzMX0.ONp5pXSC0PhN9o1QhcxzUJOqzNmu7V7fq0flnC6NDgk
+
+@refreshToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEwLCJpYXQiOjE3MzExMTc4MzEsImV4cCI6MTczODg5MzgzMX0.pYcZAMPxC8yiginvhZgpU7B8HoLgdVCOKafZX3nfs1E
+
+@devURl = https://dev-api-tm.labsquire.com/v3.0
+
+GET {{baseUrl}}/tasks/{{taskId}}
+Authorization: Bearer {{accessToken}}

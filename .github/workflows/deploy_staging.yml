@@ -1,0 +1,30 @@
+name: API TM LIS Staging Deployment
+'on':
+  push:
+    branches:
+      - staging
+  pull_request:
+    branches:
+      - staging
+  workflow_dispatch: null
+jobs:
+  deploy_staging:
+    name: Deploy Staging
+    runs-on: ubuntu-latest
+    environment: DEV
+    steps:
+      - name: install ssh keys
+        run: |
+          install -m 600 -D /dev/null ~/.ssh/id_rsa
+          echo "${{ secrets.LS_DEV_SERVER_PVT_KEY }}" > ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.LS_DEV_SERVER_IP }} > ~/.ssh/known_hosts
+      - name: connect and pull
+        run: >-
+          ssh ${{ secrets.LS_SSH_USER }}@${{ secrets.LS_DEV_SERVER_IP }} "cd
+          /home/${{ secrets.LS_SSH_USER }} && mkdir -p ${{ vars.STAGING_APP_FOLDER }}
+          && cd ${{ vars.STAGING_APP_FOLDER }} && git init && git fetch ${{
+          vars.CUSTOM_SSH_REPO_URL }} staging && git checkout FETCH_HEAD && source /home/${{
+          secrets.LS_SSH_USER }}/.nvm/nvm.sh && npm install && pm2
+          startOrReload ecosystem.config.js && exit"
+      - name: cleanup
+        run: rm -rf ~/.ssh
