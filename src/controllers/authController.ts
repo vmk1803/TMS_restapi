@@ -19,32 +19,7 @@ import { genJWTTokensForUser, verifyJWTToken } from "../utils/jwtUtils";
 import { ValidatedResetPassword } from "../validations/schema/vUserSchema";
 import { sendEmailToResetPassword } from "../services/notifications/emailServiceProvider";
 import { asyncHandler } from "../common/middlewares/errorHandler";
-
-// Define User schema for MongoDB - moved inside function to avoid connection issues
-let MongoUser: any = null;
-
-const getMongoUserModel = () => {
-  if (!MongoUser) {
-    const userSchema = new mongoose.Schema({
-      email: { type: String, required: true, unique: true },
-      password: { type: String, required: true },
-      fname: { type: String, required: true },
-      lname: { type: String, required: true },
-      mname: String,
-      phone_number: String,
-      role: { type: String, required: true, default: 'user' },
-      active: { type: Boolean, default: true },
-      profile_pic: String,
-      designation: String,
-      created_at: { type: Date, default: Date.now },
-      updated_at: { type: Date, default: Date.now }
-    });
-    MongoUser = mongoose.model('User', userSchema);
-  }
-  return MongoUser;
-};
-
-export { getMongoUserModel };
+import User from "../models/User";
 
 class AuthController {
 
@@ -54,8 +29,7 @@ class AuthController {
         const validatedLogin = await validateRequest<ValidatedLogin>('login', loginData, LOGIN_VALIDATION_ERROR);
 
         // Find user in MongoDB
-        const MongoUserModel = getMongoUserModel();
-        const user = await MongoUserModel.findOne({ email: validatedLogin.email });
+        const user = await User.findOne({ email: validatedLogin.email });
 
         const userAllowed = await this._loginChecksMongo(user, validatedLogin.password);
 

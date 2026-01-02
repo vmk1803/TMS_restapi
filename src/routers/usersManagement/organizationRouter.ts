@@ -8,6 +8,7 @@ const organizationController = new OrganizationController();
 
 // Public read operations (no authentication required)
 organizationRouter.get('/my', authenticateToken, organizationController.getMyOrganizations); // /my before /:id
+organizationRouter.get('/all', authenticateToken, organizationController.getAllOrganizations);
 organizationRouter.get('/:id', organizationController.getOrganizationById);
 organizationRouter.get('/', organizationController.getOrganizationsPaginated);
 

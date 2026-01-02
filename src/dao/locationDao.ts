@@ -14,6 +14,7 @@ export interface LocationWithOrganization {
   addressLine?: string;
   streetAddress: string;
   zip: string;
+  userCount?: number;
   createdBy?: any;
   createdAt?: Date;
   updatedAt?: Date;
@@ -126,6 +127,43 @@ class LocationDao extends BaseService<ILocation> {
         }
       },
 
+      // Lookup users assigned to this location
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: 'organizationDetails.location',
+          as: 'assignedUsers'
+        }
+      },
+
+      // Add user count field (only count active, non-deleted users)
+      {
+        $addFields: {
+          userCount: {
+            $size: {
+              $filter: {
+                input: '$assignedUsers',
+                as: 'user',
+                cond: {
+                  $and: [
+                    { $eq: ['$$user.active', true] },
+                    { $eq: ['$$user.deletedAt', null] }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+
+      // Remove the users array from response (we only need the count)
+      {
+        $project: {
+          assignedUsers: 0
+        }
+      },
+
       // Sort by creation date
       { $sort: { createdAt: -1 as const } },
 
@@ -179,6 +217,7 @@ class LocationDao extends BaseService<ILocation> {
       addressLine: record.addressLine,
       streetAddress: record.streetAddress,
       zip: record.zip,
+      userCount: record.userCount || 0,
       createdBy: record.createdBy,
       createdAt: record.createdAt,
       updatedAt: record.updatedAt,

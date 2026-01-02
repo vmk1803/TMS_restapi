@@ -1,24 +1,7 @@
 import "dotenv/config";
 import mongoose from "mongoose";
 import argon2 from "argon2";
-
-// Define User schema for MongoDB
-const userSchema = new mongoose.Schema({
-  email: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
-  fname: { type: String, required: true },
-  lname: { type: String, required: true },
-  mname: String,
-  phone_number: String,
-  role: { type: String, required: true, default: 'user' },
-  active: { type: Boolean, default: true },
-  profile_pic: String,
-  designation: String,
-  created_at: { type: Date, default: Date.now },
-  updated_at: { type: Date, default: Date.now }
-});
-
-const User = mongoose.model('User', userSchema);
+import User from "./src/models/User";
 
 async function createAdminUser() {
   try {
@@ -39,12 +22,14 @@ async function createAdminUser() {
 
     // Admin user data
     const adminData = {
+      firstName: "Dev",
+      lastName: "Team",
       email: "devteam@gmail.com",
-      password: hashedPassword,
-      fname: "Dev",
-      lname: "Team",
-      role: "admin",
-      active: true
+      mobileNumber: "1234567890",
+      gender: "male",
+      active: true,
+      profilePic: "",
+      password: hashedPassword
     };
 
     // Save to database
@@ -53,7 +38,8 @@ async function createAdminUser() {
     console.log("Admin user created successfully:", {
       id: savedUser._id,
       email: savedUser.email,
-      role: savedUser.role
+      firstName: savedUser.firstName,
+      lastName: savedUser.lastName
     });
   } catch (error) {
     console.error("Error creating admin user:", error);

@@ -136,6 +136,13 @@ class LocationController {
 
     return sendSuccessResp(res, 200, LOCATIONS_FETCHED, locations, req);
   });
+
+  // Get all locations without pagination
+  getAllLocations = asyncHandler(async (req: Request, res: Response) => {
+    const locations = await this.locationService.getAllLocations();
+
+    return sendSuccessResp(res, 200, LOCATIONS_FETCHED, locations, req);
+  });
 }
 
 export default LocationController;

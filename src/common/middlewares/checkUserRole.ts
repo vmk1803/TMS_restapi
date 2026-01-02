@@ -31,6 +31,11 @@ export const checkUserRole = (allowedRoles: string[]) => {
 export const requireUserRoleForLocations = checkUserRole(['admin', 'super_admin', 'hod', 'user']);
 
 /**
+ * Middleware to ensure admin, super_admin can manage users
+ */
+export const requireUserRoleForUsers = checkUserRole(['admin', 'super_admin']);
+
+/**
  * Middleware to ensure only admins can perform certain operations
  */
 export const requireAdminRole = checkUserRole(['admin', 'super_admin']);

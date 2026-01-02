@@ -5,6 +5,7 @@ import { Request } from "express";
 import { DEF_400, TOKEN_EXPIRED, TOKEN_INVALID, TOKEN_MISSING, TOKEN_SIG_MISMATCH } from "../constants/appMessages";
 import BadRequestException from "../exceptions/badRequestException";
 import UnauthorizedException from "../exceptions/unauthorizedException";
+import User from "../models/User";
 
 
 const genJWTTokens = async (payload: JWTUserPayload) => {
@@ -71,16 +72,14 @@ const getUserDetailsFromToken = async (req: Request) => {
     const decodedPayload = await verifyJWTToken(token);
 
     // Get user from MongoDB
-    const { getMongoUserModel } = await import('../controllers/authController');
-    const MongoUser = getMongoUserModel();
-    const user = await MongoUser.findById(decodedPayload.sub);
+    const user = await User.findById(decodedPayload.sub);
 
     if (!user) {
       throw new UnauthorizedException('User not found or invalid token');
     }
 
     const userObj = user.toObject();
-    const { password, created_at, updated_at, ...userDetails } = userObj;
+    const { password, createdAt, updatedAt, ...userDetails } = userObj;
 
     return userDetails;
 

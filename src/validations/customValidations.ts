@@ -1,8 +1,7 @@
-import { getMongoUserModel } from "../controllers/authController";
+import User from "../models/User";
 
 // Check if email exists and return a boolean accordingly
 export const userEmailExists = async (email: string) => {
-  const MongoUser = getMongoUserModel();
-  const user = await MongoUser.findOne({ email, deleted_at: null });
+  const user = await User.findOne({ email, deletedAt: null });
   return !!user;
 };

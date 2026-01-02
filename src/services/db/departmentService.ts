@@ -3,7 +3,7 @@ import Department, { IDepartment } from '../../models/Department';
 import Organization from '../../models/Organization';
 import { AppError } from '../../common/errors/AppError';
 import { validateObjectId } from '../../common/utils/validationHelpers';
-import { getMongoUserModel } from '../../controllers/authController';
+import User from '../../models/User';
 import mongoose from 'mongoose';
 
 export interface CreateDepartmentServiceData {
@@ -140,9 +140,6 @@ class DepartmentService extends BaseService<IDepartment> {
   async getDepartmentById(id: string): Promise<IDepartment | null> {
     validateObjectId(id, 'Department ID');
 
-    // Ensure User model is available for population
-    getMongoUserModel();
-
     const department = await this.findById(id, 'organization headOfDepartment');
     return department;
   }
@@ -170,9 +167,6 @@ class DepartmentService extends BaseService<IDepartment> {
       filter.name = { $regex: processedQuery.searchString, $options: 'i' };
     }
 
-    // Ensure User model is available for population
-    getMongoUserModel();
-
     const result = await this.findWithPagination(
       filter,
       { page: processedQuery.page, pageSize: processedQuery.pageSize },
@@ -197,9 +191,6 @@ class DepartmentService extends BaseService<IDepartment> {
     if (processedQuery.searchString) {
       filter.name = { $regex: processedQuery.searchString, $options: 'i' };
     }
-
-    // Ensure User model is available for population
-    getMongoUserModel();
 
     const result = await this.findWithPagination(
       filter,
@@ -234,6 +225,15 @@ class DepartmentService extends BaseService<IDepartment> {
     }
 
     return query;
+  }
+
+  async getAllDepartments(): Promise<IDepartment[]> {
+    const departments = await this.findAll(
+      {},
+      { createdAt: -1 },
+      'organization headOfDepartment'
+    );
+    return departments;
   }
 }
 

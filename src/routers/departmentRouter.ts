@@ -15,6 +15,9 @@ departmentRouter.patch('/:id', authenticateToken, departmentController.updateDep
 departmentRouter.delete('/:id', authenticateToken, departmentController.deleteDepartment);
 
 // Public read operations (no authentication required)
+// Get all departments (no pagination) - must be before /:id route
+departmentRouter.get('/all', authenticateToken, departmentController.getAllDepartments);
+
 departmentRouter.get('/organization/:orgId', departmentController.getDepartmentsByOrganization);
 departmentRouter.get('/:id', departmentController.getDepartmentById);
 departmentRouter.get('/', departmentController.getDepartmentsPaginated);

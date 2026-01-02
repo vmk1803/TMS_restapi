@@ -107,6 +107,12 @@ class DepartmentController {
     return sendSuccessResp(res, 200, "Department deleted successfully", undefined, req);
   });
 
+  // Get all departments without pagination
+  getAllDepartments = asyncHandler(async (req: Request, res: Response) => {
+    const departments = await this.departmentService.getAllDepartments();
+    return sendSuccessResp(res, 200, DEPARTMENTS_FETCHED, departments, req);
+  });
+
   // Get departments by organization ID
   getDepartmentsByOrganization = asyncHandler(async (req: Request, res: Response) => {
     const { orgId } = req.params;

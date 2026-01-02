@@ -224,7 +224,7 @@ export class BaseService<T extends Document> {
     }
   }
 
-  private handleError(error: any, operation: string): AppError {
+  protected handleError(error: any, operation: string): AppError {
     console.error(`BaseService.${operation} error:`, error);
 
     if (error.name === 'ValidationError') {

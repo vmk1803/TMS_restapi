@@ -14,6 +14,7 @@ locationRouter.delete('/:id', isAuthorized, requireUserRoleForLocations, locatio
 
 // Read operations are available to authenticated users (users and admins)
 locationRouter.get('/', isAuthorized, requireUserOrAdminRole, locationController.getLocationsPaginated);
+locationRouter.get('/all', isAuthorized, requireUserOrAdminRole, locationController.getAllLocations);
 locationRouter.get('/my', isAuthorized, requireUserOrAdminRole, locationController.getMyLocations);
 locationRouter.get('/:id', isAuthorized, requireUserOrAdminRole, locationController.getLocationById);
 

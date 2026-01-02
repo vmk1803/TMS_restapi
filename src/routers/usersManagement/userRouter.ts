@@ -1,7 +1,7 @@
 import { Hono } from "hono";
-import { canAddUser, canCreateRegularUser, canDeleteUser, canResetPassword, canUpdateUserStatus, canViewAllUsers } from "../middlewares/guards/guardUser";
-import UserController from "../controllers/userController";
-import isAuthorized from "../middlewares/isAuthorized";
+import { canAddUser, canCreateRegularUser, canDeleteUser, canResetPassword, canUpdateUserStatus, canViewAllUsers } from "../../middlewares/guards/guardUser";
+import UserController from "../../controllers/userController";
+import isAuthorized from "../../middlewares/isAuthorized";
 
 const userRouter = new Hono();
 const userController = new UserController();

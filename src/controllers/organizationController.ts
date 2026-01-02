@@ -111,6 +111,13 @@ console.log("Create Organization Request Data:", requestData);
 
     return sendSuccessResp(res, 200, ORGANIZATIONS_FETCHED, organizations, req);
   });
+
+  // Get all organizations without pagination
+  getAllOrganizations = asyncHandler(async (req: Request, res: Response) => {
+    const organizations = await this.organizationService.getAllOrganizations();
+
+    return sendSuccessResp(res, 200, ORGANIZATIONS_FETCHED, organizations, req);
+  });
 }
 
 export default OrganizationController;

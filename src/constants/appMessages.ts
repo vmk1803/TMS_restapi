@@ -308,14 +308,35 @@ export const USERS_DETAILS_UPDATED_IN_GROUP = "User details updated in group suc
 export const USER_NOT_FOUND_IN_GROUP = "User is not found in the group";
 export const USER_GROUP_DELETED = "User group deleted successfully";
 
-//project user groups
-export const PROJECT_USER_GROUP_ADDED = "Project user group added successfully";
-export const PROJECT_ID_MISSING = "Project ID is required";
-export const ROLE_MISSING = "Role is required";
-export const PROJECT_ID_IS_NUMBER = "Project ID must be a number";
-export const ROLE_INVALID = 'Role must be either "MANAGER" or "MEMBER"';
-export const ADD_USERS_TO_PROJECT_GROUP_VALIDATION_ERROR = "Group details provided do not meet the required validation criteria";
-export const USERS_ADDED_TO_PROJECT_GROUP = "Project group added successfully";
+// Role messages
+export const ROLE_CREATED = "Role created successfully";
+export const ROLE_UPDATED = "Role updated successfully";
+export const ROLE_FETCHED = "Role fetched successfully";
+export const ROLES_FETCHED = "Roles fetched successfully";
+export const ROLE_NOT_FOUND = "Role not found";
+export const ROLE_DELETED = "Role deleted successfully";
+export const ROLE_VALIDATION_ERROR = "Role Details provided do not meet the required validation criteria";
+
+// Role validation messages
+export const ROLE_NAME_INVALID = "Role name must be a valid string";
+export const ROLE_NAME_MISSING = "Role name is required";
+export const ROLE_NAME_TOO_SHORT = "Role name must be minimum of 3 characters";
+export const ROLE_DESCRIPTION_INVALID = "Role description must be a valid string";
+export const ROLE_PERMISSIONS_INVALID = "Permissions must be valid permission strings";
+export const ROLE_PERMISSIONS_MISSING = "Permissions are required";
+
+// Permission constants
+export const PERMISSIONS = {
+  CREATE: "CREATE",
+  EDIT: "EDIT",
+  VIEW: "VIEW",
+  DELETE: "DELETE",
+  EXPORT: "EXPORT",
+  UPDATE: "UPDATE"
+} as const;
+
+export type PermissionType = typeof PERMISSIONS[keyof typeof PERMISSIONS];
+
 export const PROJECT_USER_GROUP_NOT_FOUND = "Project user group not found";
 export const PROJECT_USER_GROUP_UPDATED = "Project user group updated successfully";
 export const PROJECT_USER_GROUP_DETAILS_FETCHED = "Project user group details fetched successfully";
@@ -377,3 +398,38 @@ export const DEPARTMENT_UPDATED = "Department updated successfully";
 export const DEPARTMENT_FETCHED = "Department fetched successfully";
 export const DEPARTMENTS_FETCHED = "Departments fetched successfully";
 export const DEPARTMENT_NOT_FOUND = "Department not found";
+
+// User Management messages
+export const USER_MGMT_CREATED = "User created successfully";
+export const USER_MGMT_UPDATED = "User updated successfully";
+export const USER_MGMT_DELETED = "User deleted successfully";
+export const USER_MGMT_FETCHED = "User fetched successfully";
+export const USERS_MGMT_FETCHED = "Users fetched successfully";
+export const USER_MGMT_NOT_FOUND = "User not found";
+export const USER_MGMT_VALIDATION_ERROR = "User Details provided do not meet the required validation criteria";
+
+// User validation messages
+export const USER_FIRST_NAME_REQUIRED = "First name is required";
+export const USER_FIRST_NAME_INVALID = "First name must be a valid string";
+export const USER_LAST_NAME_REQUIRED = "Last name is required";
+export const USER_LAST_NAME_INVALID = "Last name must be a valid string";
+export const USER_EMAIL_REQUIRED = "Email is required";
+export const USER_EMAIL_INVALID = "Email must be a valid email address";
+export const USER_EMAIL_ALREADY_EXISTS = "Email already exists";
+export const USER_MOBILE_REQUIRED = "Mobile number is required";
+export const USER_MOBILE_INVALID = "Mobile number must be a valid string";
+export const USER_GENDER_REQUIRED = "Gender is required";
+export const USER_GENDER_INVALID = "Gender must be a valid string";
+export const USER_PASSWORD_REQUIRED = "Password is required";
+export const USER_PASSWORD_INVALID = "Password must be a valid string";
+export const USER_PASSWORD_TOO_SHORT = "Password must be at least 8 characters";
+export const USER_ROLE_INVALID = "Role must be a valid ObjectId";
+export const USER_DEPARTMENT_INVALID = "Department must be a valid ObjectId";
+export const USER_ORGANIZATION_INVALID = "Organization must be a valid ObjectId";
+export const USER_LOCATION_INVALID = "Location must be a valid ObjectId";
+export const USER_REPORTING_MANAGER_INVALID = "Reporting manager must be a valid ObjectId";
+export const USER_REPORTING_MANAGER_NOT_FOUND = "Reporting manager not found";
+export const USER_CANNOT_BE_OWN_MANAGER = "User cannot be their own reporting manager";
+export const USER_PASSWORD_SETTING_INVALID = "Password setting must be 'manual' or 'auto-generate'";
+export const USER_STATUS_REQUIRED = "User status is required";
+export const USER_STATUS_INVALID = "User status must be a valid string";
