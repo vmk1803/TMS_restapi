@@ -5,6 +5,7 @@ import { VForgotPasswordSchema } from "./schema/vForgotPasswordSchema";
 import { VLoginSchema } from "./schema/vLoginSchema";
 import { VAddUserSchema, VAdminUserSchema, VRegularUserSchema, VResetPasswordByAdminSchema, VResetPasswordSchema, VUpdatePasswordSchema, VUpdateUserProfilePicSchema, VUpdateUserSchema, VUpdateUserStatusSchema } from "./schema/vUserSchema";
 import { VLocationSchema, VUpdateLocationSchema, VSingleLocationSchema } from "./schema/vLocationSchema";
+import { VGroupSchema, VUpdateGroupSchema } from "./schema/vGroupSchema";
 export const validateRequest = async<R extends ValidatedRequest>(actionType: AppActivity, reqData: any, errorMessage: string) => {
 
   let schema;
@@ -48,6 +49,12 @@ export const validateRequest = async<R extends ValidatedRequest>(actionType: App
       break;
     case 'location:update':
       schema = VUpdateLocationSchema;
+      break;
+    case 'group:create':
+      schema = VGroupSchema;
+      break;
+    case 'group:update':
+      schema = VUpdateGroupSchema;
       break;
   }
 

@@ -26,6 +26,7 @@ export interface DepartmentServiceQuery {
   searchString?: string;
   organizationId?: string;
   departmentId?: string;
+  status?: string;
 }
 
 export interface PaginatedDepartmentsResult {
@@ -148,35 +149,115 @@ class DepartmentService extends BaseService<IDepartment> {
     const validatedQuery = this.validatePaginationQuery(query);
     const processedQuery = this.processSearchQuery(validatedQuery);
 
-    // Build filter for BaseService
-    const filter: any = {};
+    const page = validatedQuery.page!;
+    const pageSize = validatedQuery.pageSize!;
+    const skip = (page - 1) * pageSize;
 
-    // Organization filter - always applies if provided
-    if (processedQuery.organizationId) {
-      filter.organization = processedQuery.organizationId;
+    // Build aggregation pipeline
+    const pipeline: any[] = [];
+
+    // Initial match stage for filters
+    const matchStage: any = {};
+
+    // Organization filter
+    if (validatedQuery.organizationId) {
+      matchStage.organization = new mongoose.Types.ObjectId(validatedQuery.organizationId);
     }
 
-    // Department ID filter - exact match by _id
-    if (processedQuery.departmentId) {
-      validateObjectId(processedQuery.departmentId, 'Department ID');
-      filter._id = processedQuery.departmentId;
+    // Department ID filter
+    if (validatedQuery.departmentId) {
+      validateObjectId(validatedQuery.departmentId, 'Department ID');
+      matchStage._id = new mongoose.Types.ObjectId(validatedQuery.departmentId);
     }
 
-    // Search filter - partial match in department name
+    // Status filter
+    if (validatedQuery.status) {
+      matchStage.status = validatedQuery.status;
+    }
+
+    if (Object.keys(matchStage).length > 0) {
+      pipeline.push({ $match: matchStage });
+    }
+
+    // Lookup organization
+    pipeline.push({
+      $lookup: {
+        from: 'organizations',
+        localField: 'organization',
+        foreignField: '_id',
+        as: 'organization'
+      }
+    });
+
+    // Unwind organization (assuming one-to-one relationship)
+    pipeline.push({
+      $unwind: {
+        path: '$organization',
+        preserveNullAndEmptyArrays: true
+      }
+    });
+
+    // Lookup head of department
+    pipeline.push({
+      $lookup: {
+        from: 'users',
+        localField: 'headOfDepartment',
+        foreignField: '_id',
+        as: 'headOfDepartment'
+      }
+    });
+
+    // Unwind head of department (assuming one-to-one relationship)
+    pipeline.push({
+      $unwind: {
+        path: '$headOfDepartment',
+        preserveNullAndEmptyArrays: true
+      }
+    });
+
+    // Search filter - match across department name, organization name, and head of department name
     if (processedQuery.searchString) {
-      filter.name = { $regex: processedQuery.searchString, $options: 'i' };
+      pipeline.push({
+        $match: {
+          $or: [
+            { name: { $regex: processedQuery.searchString, $options: 'i' } },
+            { 'organization.organizationName': { $regex: processedQuery.searchString, $options: 'i' } },
+            { 'headOfDepartment.firstName': { $regex: processedQuery.searchString, $options: 'i' } },
+            { 'headOfDepartment.lastName': { $regex: processedQuery.searchString, $options: 'i' } },
+            { 'headOfDepartment.fname': { $regex: processedQuery.searchString, $options: 'i' } },
+            { 'headOfDepartment.lname': { $regex: processedQuery.searchString, $options: 'i' } }
+          ]
+        }
+      });
     }
 
-    const result = await this.findWithPagination(
-      filter,
-      { page: processedQuery.page, pageSize: processedQuery.pageSize },
-      { createdAt: -1 },
-      'organization headOfDepartment'
-    );
+    // Get total count before pagination
+    const countPipeline = [...pipeline, { $count: 'total' }];
+    const countResult = await this.model.aggregate(countPipeline);
+    const totalRecords = countResult[0]?.total || 0;
+
+    // Add pagination
+    pipeline.push({ $sort: { createdAt: -1 } });
+    pipeline.push({ $skip: skip });
+    pipeline.push({ $limit: pageSize });
+
+    // Execute aggregation
+    const records = await this.model.aggregate(pipeline);
+
+    const totalPages = Math.ceil(totalRecords / pageSize);
+    const nextPage = page < totalPages ? page + 1 : null;
+    const prevPage = page > 1 ? page - 1 : null;
 
     return {
-      pagination_info: result.pagination,
-      records: result.data
+      pagination_info: {
+        total_records: totalRecords,
+        total_pages: totalPages,
+        page_size: pageSize,
+        current_page: page,
+        next_page: nextPage,
+        prev_page: prevPage
+      },
+      records
     };
   }
 

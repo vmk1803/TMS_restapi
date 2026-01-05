@@ -34,6 +34,7 @@ export interface IUser extends Document {
   password?: string;
   passwordSetting?: 'manual' | 'auto-generate';
   assets?: IAsset[];
+  lastLogin?: Date;
 
   // Metadata
   createdAt?: Date;
@@ -173,6 +174,10 @@ const UserSchema = new Schema<IUser>(
     assets: {
       type: [AssetSchema],
       default: []
+    },
+    lastLogin: {
+      type: Date,
+      default: null
     },
 
     // Soft Delete

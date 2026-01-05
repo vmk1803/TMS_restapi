@@ -30,6 +30,7 @@ export interface LocationServiceQuery {
   pageSize?: number;
   searchString?: string;
   createdBy?: string;
+  organizationId?: string;
 }
 
 export interface PaginatedLocationsWithOrgResult {
@@ -126,6 +127,13 @@ class LocationDao extends BaseService<ILocation> {
           organization: { $arrayElemAt: ['$organization', 0] }
         }
       },
+
+      // Filter by organization if specified
+      ...(processedQuery.organizationId ? [{
+        $match: {
+          'organization._id': this.toObjectId(processedQuery.organizationId)
+        }
+      }] : []),
 
       // Lookup users assigned to this location
       {

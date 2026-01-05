@@ -76,13 +76,15 @@ class DepartmentController {
     const searchString = req.query.search_string as string | undefined;
     const organizationId = req.query.organization_id as string | undefined;
     const departmentId = req.query.department_id as string | undefined;
+    const status = req.query.status as string | undefined;
 
     const query = {
       page,
       pageSize,
       searchString,
       organizationId,
-      departmentId
+      departmentId,
+      status
     };
 
     const result = await this.departmentService.getDepartmentsPaginated(query);

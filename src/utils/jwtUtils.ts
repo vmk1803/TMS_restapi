@@ -71,8 +71,8 @@ const getUserDetailsFromToken = async (req: Request) => {
 
     const decodedPayload = await verifyJWTToken(token);
 
-    // Get user from MongoDB
-    const user = await User.findById(decodedPayload.sub);
+    // Get user from MongoDB with populated role
+    const user = await User.findById(decodedPayload.sub).populate('organizationDetails.role', 'name');
 
     if (!user) {
       throw new UnauthorizedException('User not found or invalid token');

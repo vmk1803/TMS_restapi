@@ -1,30 +1,14 @@
 import { Project } from "../db/schema/projects";
 import { User } from "../db/schema/users";
 import { TaskAssignee } from "../db/schema/taskAssignees";
-import { ValidateAddTaskAssignee } from "../validations/schema/vAddTaskAsssigneSchema";
 
-import { ValidatedTags } from "../validations/schema/vAddtagsSchema";
-import { ValidatedCreateTask } from "../validations/schema/vAddTaskSchema";
-import { ValidatedCreateTaskComment } from "../validations/schema/vCreateTaskCommentSchema";
 import { ValidatedForgotPassword } from "../validations/schema/vForgotPasswordSchema";
 import { ValidatedLogin } from "../validations/schema/vLoginSchema";
-import { ValidatedCreateProject, ValidatedUpdateProjectLogo } from "../validations/schema/vProjectSchema";
-import { ValidatedCreateProjectUsers, ValidatedUpdateProjectUsers } from "../validations/schema/vProjectUsersSchema";
-import { ValidatedUpdateProject } from "../validations/schema/vUpdateProjectSchema";
-import { ValidatedUpdateTask } from "../validations/schema/VupdateTaskSchema";
-import { ValidateUploadTaskAttachment } from "../validations/schema/vUploadTaskAttachment";
-
-import { ValidatedPasswordChange, ValidatedUpdateUserProfilePic, ValidatedUpdateUserStatus } from "../validations/schema/vUserSchema";
-import { ValidatedTaskAssignee } from "../validations/schema/vTaskAssigneeSchema";
-import { ValidatedRemoveProjectMember } from "../validations/schema/vRemoveProjectMemberSchema";
+import { ValidatedPasswordChange, ValidatedUpdateUserProfilePic, ValidatedUpdateUserStatus, ValidatedAddUser, ValidatedUpdateUser } from "../validations/schema/vUserSchema";
+import { ValidatedLocation, ValidatedUpdateLocation } from "../validations/schema/vLocationSchema";
+import { ValidatedGroup, ValidatedUpdateGroup } from "../validations/schema/vGroupSchema";
 
 import { DBTableRow } from "./db.types";
-import { ValidatedDownloadFile, ValidatedUploadFile } from "../validations/schema/vFileSchema";
-import { ValidatedTaskPriority } from '../validations/schema/vUpdatePriorityField';
-import { ValidatedAddUsersToGroup, ValidatedRemoveUsersFromGroup, ValidatedUpdateUserDetailsInGroup, ValidatedUserGroup } from "../validations/schema/vUserGroupSchema";
-import { ValidatedAddProjectGroups, ValidatedRemoveUsersFromProjectGroup } from "../validations/schema/vProjectUserGroupSchema";
-import { ValidatedAddTaskGroups, ValidatedRemoveUsersFromTaskGroup } from "../validations/schema/vTaskUserGroupSchema";
-import { ValidatedLocation, ValidatedUpdateLocation } from "../validations/schema/vLocationSchema";
 
 
 export type UserDetails = Omit<User, 'password'>;
@@ -490,13 +474,9 @@ export type FileActivity = 'file:upload-file' | 'file:download-file';
 
 export type LocationActivity = 'location:create' | 'location:update' | 'location:delete' | 'location:view' | 'location:view-all';
 
-export type AppActivity = PasswordActivity | LoginActivity | ProjectActivity | UserActivity | TaskActivity | FileActivity | LocationActivity;
+export type GroupActivity = 'group:create' | 'group:update' | 'group:delete' | 'group:view' | 'group:view-all';
 
-export type ValidatedRequest = ValidatedLogin | ValidatedForgotPassword | ValidatedPasswordChange | ValidatedCreateProject
-  | ValidatedCreateProjectUsers | ValidatedUpdateProjectUsers | ValidatedUpdateTask | ValidatedUpdateProject | ValidatedUpdateUserStatus
-  | ValidatedUpdateUserProfilePic | ValidateAddTaskAssignee | ValidateUploadTaskAttachment | ValidatedTaskAssignee
-  | ValidatedCreateTask | ValidatedCreateTaskComment | ValidatedTags | ValidatedUpdateProjectLogo | ValidatedRemoveProjectMember | ValidatedUploadFile | ValidatedDownloadFile
-  | ValidatedTaskPriority | ValidatedUserGroup | ValidatedAddUsersToGroup | ValidatedUpdateUserDetailsInGroup
-  | ValidatedRemoveUsersFromGroup | ValidatedAddProjectGroups
-  | ValidatedRemoveUsersFromProjectGroup | ValidatedAddTaskGroups
-  | ValidatedRemoveUsersFromTaskGroup | ValidatedLocation | ValidatedUpdateLocation;
+export type AppActivity = PasswordActivity | LoginActivity | ProjectActivity | UserActivity | TaskActivity | FileActivity | LocationActivity | GroupActivity;
+
+export type ValidatedRequest = ValidatedLogin | ValidatedForgotPassword | ValidatedPasswordChange | ValidatedUpdateUserStatus
+  | ValidatedUpdateUserProfilePic | ValidatedAddUser | ValidatedUpdateUser | ValidatedLocation | ValidatedUpdateLocation | ValidatedGroup | ValidatedUpdateGroup;

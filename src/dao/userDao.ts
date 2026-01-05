@@ -44,12 +44,12 @@ class UserDao extends BaseService<IUser> {
       // Build filter
       const filter: any = { deletedAt: null };
 
-      // Search in name (prefix regex) or email (direct match)
+      // Search in name (prefix regex) or email (partial regex)
       if (searchString) {
         filter.$or = [
           { firstName: { $regex: `^${searchString}`, $options: 'i' } },
           { lastName: { $regex: `^${searchString}`, $options: 'i' } },
-          { email: searchString }
+          { email: { $regex: searchString, $options: 'i' } }
         ];
       }
 

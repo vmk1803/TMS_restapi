@@ -2,6 +2,7 @@ import express, { Router } from "express";
 import locationRouter from "./locationRouter";
 import organizationRouter from "./organizationRouter";
 import usersRouter from "./usersRouter";
+import groupRouter from "./groupRouter";
 import departmentRouter from "../departmentRouter";
 import roleRouter from "../roleRouter";
 
@@ -15,6 +16,9 @@ userManagementRoutes.use('/organizations', organizationRouter);
 
 // User Management routes
 userManagementRoutes.use('/users', usersRouter);
+
+// Group routes (with their own auth controls)
+userManagementRoutes.use('/groups', groupRouter);
 
 userManagementRoutes.use("/departments", departmentRouter);
 

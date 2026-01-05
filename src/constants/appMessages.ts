@@ -433,3 +433,25 @@ export const USER_CANNOT_BE_OWN_MANAGER = "User cannot be their own reporting ma
 export const USER_PASSWORD_SETTING_INVALID = "Password setting must be 'manual' or 'auto-generate'";
 export const USER_STATUS_REQUIRED = "User status is required";
 export const USER_STATUS_INVALID = "User status must be a valid string";
+
+// Group messages
+export const GROUP_CREATED = "Group created successfully";
+export const GROUP_UPDATED = "Group updated successfully";
+export const GROUP_DELETED = "Group deleted successfully";
+export const GROUP_FETCHED = "Group fetched successfully";
+export const GROUPS_FETCHED = "Groups fetched successfully";
+export const GROUP_NOT_FOUND = "Group not found";
+export const GROUP_VALIDATION_ERROR = "Group Details provided do not meet the required validation criteria";
+
+// Group validation messages
+export const GROUP_NAME_REQUIRED = "Group name is required";
+export const GROUP_NAME_INVALID = "Group name must be a valid string";
+export const GROUP_NAME_MIN_LENGTH = "Group name must be minimum of 3 characters";
+export const GROUP_NAME_ALREADY_EXISTS = "Group name already exists";
+export const GROUP_DEPARTMENT_REQUIRED = "Department is required";
+export const GROUP_DEPARTMENT_INVALID = "Department must be a valid ObjectId";
+export const GROUP_MANAGER_REQUIRED = "Manager is required";
+export const GROUP_MANAGER_INVALID = "Manager must be a valid ObjectId";
+export const GROUP_MEMBERS_REQUIRED = "Members are required";
+export const GROUP_MEMBERS_INVALID = "Members must be valid ObjectIds";
+export const GROUP_MEMBERS_MIN_LENGTH = "At least one member is required";

@@ -74,13 +74,14 @@ class LocationController {
     const page = +(req.query.page as string) || 1;
     const pageSize = +(req.query.page_size as string) || 10;
     const searchString = req.query.search_string as string | undefined;
-    const user = (req as any).user_payload;
+    const organizationId = req.query.organization_id as string | undefined;
 
     const query = {
       page,
       pageSize,
       searchString,
-      createdBy: user?._id // Optional, for filtering if user is logged in
+      organizationId
+      // Removed createdBy filter to show all locations to authenticated users
     };
 
     // Use DAO with aggregation to include organization data

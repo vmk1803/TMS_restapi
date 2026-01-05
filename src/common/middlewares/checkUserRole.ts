@@ -14,7 +14,8 @@ export const checkUserRole = (allowedRoles: string[]) => {
         throw AppError.unauthorized("Authentication required");
       }
 
-      if (!allowedRoles.includes(user.role)) {
+      const userRole = user.organizationDetails?.role?.name;
+      if (!userRole || !allowedRoles.includes(userRole)) {
         throw AppError.forbidden(`Access denied. Required roles: ${allowedRoles.join(', ')}`);
       }
 

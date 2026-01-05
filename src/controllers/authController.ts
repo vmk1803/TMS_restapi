@@ -33,6 +33,9 @@ class AuthController {
 
         const userAllowed = await this._loginChecksMongo(user, validatedLogin.password);
 
+        // Update last login timestamp
+        await User.findByIdAndUpdate(userAllowed._id, { lastLogin: new Date() });
+
         const tokensData = await this._generateTokensForMongoUser(userAllowed._id.toString());
 
         // Set cookie
