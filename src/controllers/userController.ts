@@ -1,4 +1,5 @@
 import { Response, Request, NextFunction } from 'express';
+import mongoose from 'mongoose';
 import {
   USER_MGMT_CREATED,
   USER_MGMT_UPDATED,
@@ -250,6 +251,33 @@ class UserController {
       const users = await this.userService.getUsersByRole(roleId);
 
       return sendSuccessResp(res, 200, USERS_MGMT_FETCHED, users, req);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Reset user password by admin
+   */
+  resetPasswordByAdmin = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      const user = (req as any).user_payload;
+
+      if (!id) {
+        throw AppError.badRequest('User ID is required');
+      }
+
+      // Generate new random password
+      const newPassword = this.userService.generateRandomPassword();
+
+      // Hash the password
+      const hashedPassword = await this.userService.hashPassword(newPassword);
+
+      // Update user password (this will automatically log the activity)
+      await this.userService.updateUser(id, { password: hashedPassword }, user._id);
+
+      return sendSuccessResp(res, 200, 'Password reset successfully', { id }, req);
     } catch (error) {
       next(error);
     }

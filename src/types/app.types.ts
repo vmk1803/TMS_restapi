@@ -45,6 +45,14 @@ export type LoginRespData = {
   user_details: UserDetails;
 };
 
+export interface UserStatistics {
+  totalUsers: number;
+  activeUsers: number;
+  inactiveUsers: number;
+  totalGroups: number;
+  totalDepartments: number;
+}
+
 export type GetTaskAssignneesRespData = {
   task_assignee_id: number;
   user_id: number;
