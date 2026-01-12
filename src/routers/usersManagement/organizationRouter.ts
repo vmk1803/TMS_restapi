@@ -17,4 +17,7 @@ organizationRouter.post('/', authenticateToken, checkUserRole(['admin', 'super_a
 organizationRouter.patch('/:id', authenticateToken, checkUserRole(['admin', 'super_admin', 'hod', 'user']), organizationController.updateOrganization);
 organizationRouter.delete('/:id', authenticateToken, checkUserRole(['admin', 'super_admin', 'hod', 'user']), organizationController.deleteOrganization);
 
+// Export organizations as CSV
+organizationRouter.post('/export-csv', authenticateToken, organizationController.exportOrganizationsCSV);
+
 export default organizationRouter;

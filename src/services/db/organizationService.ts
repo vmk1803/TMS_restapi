@@ -211,6 +211,41 @@ class OrganizationService extends BaseService<IOrganization> {
     });
   }
 
+  /**
+   * Export all organizations as CSV with filters applied (no pagination)
+   */
+  async exportOrganizationsAsCSV(query: Omit<OrganizationServiceQuery, 'page' | 'pageSize'>): Promise<any[]> {
+    try {
+      const processedQuery = this.processSearchQuery(query);
+      
+      // Build filter for all organizations without pagination
+      const filter: any = { deletedAt: null };
+      if (processedQuery.createdBy) {
+        filter.createdBy = processedQuery.createdBy;
+      }
+      if (processedQuery.searchString) {
+        filter.$or = [
+          { organizationName: { $regex: processedQuery.searchString, $options: 'i' } },
+          { email: { $regex: processedQuery.searchString, $options: 'i' } },
+          { description: { $regex: processedQuery.searchString, $options: 'i' } }
+        ];
+      }
+
+      const organizations = await this.findAll(filter, { createdAt: -1 });
+      
+      // Transform data to return only required fields for CSV export
+      return organizations.map(organization => ({
+        Organization: organization.organizationName,
+        Locations: Array.isArray(organization.locations) ? organization.locations.length : 0,
+        Contact: organization.contactNumber,
+        Email: organization.email,
+        Status: 'Active' // Assuming all non-deleted organizations are active
+      }));
+    } catch (error) {
+      throw AppError.internal('Failed to export organizations');
+    }
+  }
+
   // Private helper methods for business logic
 
   private validatePaginationQuery(query: OrganizationServiceQuery): OrganizationServiceQuery {

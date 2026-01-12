@@ -45,12 +45,82 @@ export type LoginRespData = {
   user_details: UserDetails;
 };
 
+export interface MonthlyUserData {
+  month: string;
+  users: number;
+}
+
 export interface UserStatistics {
   totalUsers: number;
   activeUsers: number;
   inactiveUsers: number;
   totalGroups: number;
   totalDepartments: number;
+  monthlyData?: MonthlyUserData[];
+}
+
+export interface RecentUser {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  roleName?: string;
+  departmentName?: string;
+  organizationName?: string;
+  createdAt: Date;
+}
+
+export interface RoleBreakdown {
+  roleId: string;
+  roleName: string;
+  userCount: number;
+  percentage: number;
+}
+
+export interface OrganizationOverview {
+  organizationId: string;
+  organizationName: string;
+  userCount: number;
+}
+
+export interface ChangeMetrics {
+  totalUsersChange: number;
+  activeUsersChange: number;
+  inactiveUsersChange: number;
+  totalGroupsChange: number;
+  totalDepartmentsChange: number;
+}
+
+export interface EnhancedUserStatistics {
+  totalUsers: number;
+  activeUsers: number;
+  inactiveUsers: number;
+  totalGroups: number;
+  totalDepartments: number;
+  recentlyAddedUsers: RecentUser[];
+  roleBreakdown: RoleBreakdown[];
+  organizationsOverview: OrganizationOverview[];
+  monthlyData?: MonthlyUserData[];
+  changeMetrics?: ChangeMetrics;
+}
+
+export interface UserTrendsResponse {
+  monthlyData: MonthlyUserData[];
+  availableRoles: Array<{ id: string; name: string }>;
+  year: number;
+  roleId?: string;
+}
+
+export interface DepartmentUserCount {
+  departmentId: string;
+  departmentName: string;
+  organizationName: string;
+  userCount: number;
+}
+
+export interface UsersByDepartmentResponse {
+  departments: DepartmentUserCount[];
+  totalUsers: number;
 }
 
 export type GetTaskAssignneesRespData = {

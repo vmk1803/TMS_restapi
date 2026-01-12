@@ -12,6 +12,9 @@ groupRouter.post('/', isAuthorized, requireUserRoleForLocations, groupController
 groupRouter.patch('/:id', isAuthorized, requireUserRoleForLocations, groupController.updateGroup);
 groupRouter.delete('/:id', isAuthorized, requireUserRoleForLocations, groupController.deleteGroup);
 
+// Export groups as CSV
+groupRouter.post('/export-csv', isAuthorized, requireUserOrAdminRole, groupController.exportGroupsCSV);
+
  // Read operations are available to authenticated users (users and admins)
 groupRouter.get('/', isAuthorized, requireUserOrAdminRole, groupController.getGroupsPaginated);
 groupRouter.get('/all', isAuthorized, requireUserOrAdminRole, groupController.getAllGroups);

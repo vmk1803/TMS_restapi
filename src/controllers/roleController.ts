@@ -4,6 +4,7 @@ import RoleService from "../services/db/roleService";
 import { AppError } from "../common/errors/AppError";
 import { sendSuccessResp, sendPaginatedResponse } from "../utils/respUtils";
 import { asyncHandler } from "../common/middlewares/errorHandler";
+import { sendCSVResponse } from "../utils/csvGenerator";
 
 class RoleController {
     private roleService = new RoleService();
@@ -102,6 +103,21 @@ class RoleController {
     getAllRoles = asyncHandler(async (req: Request, res: Response) => {
         const roles = await this.roleService.getAllRoles();
         return sendSuccessResp(res, 200, ROLES_FETCHED, roles, req);
+    });
+
+    // Export roles as CSV
+    exportRolesCSV = asyncHandler(async (req: Request, res: Response) => {
+        const searchString = req.body.searchString as string | undefined;
+        const permissionSection = req.body.permissionSection as string | undefined;
+
+        const query = {
+            searchString,
+            permissionSection
+        };
+
+        const roles = await this.roleService.exportRolesAsCSV(query);
+        
+        return sendCSVResponse(res, roles, 'roles');
     });
 }
 

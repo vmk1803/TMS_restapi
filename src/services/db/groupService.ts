@@ -165,6 +165,44 @@ class GroupService extends BaseService<IGroup> {
     return groups;
   }
 
+  /**
+   * Export all groups as CSV with filters applied (no pagination)
+   */
+  async exportGroupsAsCSV(query: Omit<GroupServiceQuery, 'page' | 'pageSize'>): Promise<any[]> {
+    try {
+      const processedQuery = this.processSearchQuery(query);
+      
+      // Build filter similar to getGroupsPaginated but without pagination
+      const filter: any = { deletedAt: null };
+      if (processedQuery.search_string) {
+        filter.name = { $regex: processedQuery.search_string, $options: 'i' };
+      }
+      if (processedQuery.department) {
+        filter.department = processedQuery.department;
+      }
+
+      const groups = await this.findAll(
+        filter,
+        { createdAt: -1 },
+        ['department', 'manager', 'members']
+      );
+
+      // Transform data to return only required fields for CSV export
+      return groups.map(group => ({
+        'Group Name': group.name || 'N/A',
+        'Manager': group.manager 
+          ? `${(group.manager as any).fname || (group.manager as any).firstName || ''} ${(group.manager as any).lname || (group.manager as any).lastName || ''}`.trim()
+          : 'N/A',
+        'Members': Array.isArray(group.members) ? group.members.length.toString() : '0',
+        'Department': (group.department as any)?.name || 'N/A', 
+        'Type': 'Standard', // Default type since groups don't have a specific type field
+        'Last Modified': group.updatedAt ? new Date(group.updatedAt).toLocaleDateString('en-US') : "N/A"
+      }));
+    } catch (error) {
+      throw AppError.internal('Failed to export groups');
+    }
+  }
+
   async getGroupMembers(groupId: string, query: GroupMembersQuery): Promise<PaginatedGroupsResult> {
     validateObjectId(groupId, 'Group ID');
 
@@ -268,8 +306,8 @@ class GroupService extends BaseService<IGroup> {
         pagination_info: {
           total_records: 0,
           total_pages: 0,
-          page_size: processedQuery.pageSize,
-          current_page: processedQuery.page,
+          page_size: processedQuery.pageSize!,
+          current_page: processedQuery.page!,
           next_page: null,
           prev_page: null
         },
@@ -280,19 +318,19 @@ class GroupService extends BaseService<IGroup> {
     const { members, totalCount } = result[0];
 
     // Apply pagination to the results
-    const totalPages = Math.ceil(totalCount / processedQuery.pageSize);
-    const startIndex = (processedQuery.page - 1) * processedQuery.pageSize;
-    const endIndex = startIndex + processedQuery.pageSize;
+    const totalPages = Math.ceil(totalCount / processedQuery.pageSize!);
+    const startIndex = (processedQuery.page! - 1) * processedQuery.pageSize!;
+    const endIndex = startIndex + processedQuery.pageSize!;
     const paginatedMembers = members.slice(startIndex, endIndex);
 
     return {
       pagination_info: {
         total_records: totalCount,
         total_pages: totalPages,
-        page_size: processedQuery.pageSize,
-        current_page: processedQuery.page,
-        next_page: processedQuery.page < totalPages ? processedQuery.page + 1 : null,
-        prev_page: processedQuery.page > 1 ? processedQuery.page - 1 : null
+        page_size: processedQuery.pageSize!,
+        current_page: processedQuery.page!,
+        next_page: processedQuery.page! < totalPages ? processedQuery.page! + 1 : null,
+        prev_page: processedQuery.page! > 1 ? processedQuery.page! - 1 : null
       },
       records: paginatedMembers
     };

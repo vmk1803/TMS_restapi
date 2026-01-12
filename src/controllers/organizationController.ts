@@ -5,6 +5,7 @@ import { AppError } from "../common/errors/AppError";
 import { sendSuccessResp, sendPaginatedResponse } from "../utils/respUtils";
 import { asyncHandler } from "../common/middlewares/errorHandler";
 import { log } from "console";
+import { sendCSVResponse } from "../utils/csvGenerator";
 
 class OrganizationController {
   private organizationService = new OrganizationService();
@@ -117,6 +118,21 @@ console.log("Create Organization Request Data:", requestData);
     const organizations = await this.organizationService.getAllOrganizations();
 
     return sendSuccessResp(res, 200, ORGANIZATIONS_FETCHED, organizations, req);
+  });
+
+  // Export organizations as CSV
+  exportOrganizationsCSV = asyncHandler(async (req: Request, res: Response) => {
+    const searchString = req.body.searchString as string | undefined;
+    const createdBy = req.body.createdBy as string | undefined;
+
+    const query = {
+      searchString,
+      createdBy
+    };
+
+    const organizations = await this.organizationService.exportOrganizationsAsCSV(query);
+    
+    return sendCSVResponse(res, organizations, 'organizations');
   });
 }
 

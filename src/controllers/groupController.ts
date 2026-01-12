@@ -16,6 +16,7 @@ import { ValidatedUpdateGroup } from "../validations/schema/vGroupSchema";
 import { asyncHandler } from "../common/middlewares/errorHandler";
 import { safeParseAsync, flatten } from "valibot";
 import { VGroupSchema } from "../validations/schema/vGroupSchema";
+import { sendCSVResponse } from "../utils/csvGenerator";
 
 class GroupController {
   private groupService = new GroupService();
@@ -137,6 +138,23 @@ class GroupController {
     const groups = await this.groupService.getAllGroups();
 
     return sendSuccessResp(res, 200, GROUPS_FETCHED, groups, req);
+  });
+
+  // Export groups as CSV
+  exportGroupsCSV = asyncHandler(async (req: Request, res: Response) => {
+    const searchString = req.body.search_string as string | undefined;
+    const department = req.body.department as string | undefined;
+    const status = req.body.status as string | undefined;
+
+    const query = {
+      search_string: searchString,
+      department,
+      status
+    };
+
+    const groups = await this.groupService.exportGroupsAsCSV(query);
+    
+    return sendCSVResponse(res, groups, 'groups');
   });
 
   // Get group members with pagination and filters

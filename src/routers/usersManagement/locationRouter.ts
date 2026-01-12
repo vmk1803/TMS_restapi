@@ -12,6 +12,9 @@ locationRouter.post('/', isAuthorized, requireUserRoleForLocations, locationCont
 locationRouter.patch('/:id', isAuthorized, requireUserRoleForLocations, locationController.updateLocation);
 locationRouter.delete('/:id', isAuthorized, requireUserRoleForLocations, locationController.deleteLocation);
 
+// Export locations as CSV
+locationRouter.post('/export-csv', isAuthorized, requireUserOrAdminRole, locationController.exportLocationsCSV);
+
 // Read operations are available to authenticated users (users and admins)
 locationRouter.get('/', isAuthorized, requireUserOrAdminRole, locationController.getLocationsPaginated);
 locationRouter.get('/all', isAuthorized, requireUserOrAdminRole, locationController.getAllLocations);

@@ -250,6 +250,102 @@ class UserDao extends BaseService<IUser> {
       throw this.handleError(error, 'softDeleteUser');
     }
   }
+
+  /**
+   * Get all users for CSV export without pagination
+   */
+  async getUsersForExport(query: Omit<UserServiceQuery, 'page' | 'pageSize'>): Promise<any[]> {
+    try {
+      const { searchString = '', organizationId, departmentId, roleId, status } = query;
+
+      // Build filter
+      const filter: any = { deletedAt: null };
+
+      // Search in name (prefix regex) or email (partial regex)
+      if (searchString) {
+        filter.$or = [
+          { firstName: { $regex: `^${searchString}`, $options: 'i' } },
+          { lastName: { $regex: `^${searchString}`, $options: 'i' } },
+          { fname: { $regex: `^${searchString}`, $options: 'i' } },
+          { lname: { $regex: `^${searchString}`, $options: 'i' } },
+          { email: { $regex: searchString, $options: 'i' } }
+        ];
+      }
+
+      // Organization filter
+      if (organizationId && isValidObjectId(organizationId)) {
+        filter['organizationDetails.organization'] = new mongoose.Types.ObjectId(organizationId);
+      }
+
+      // Department filter
+      if (departmentId && isValidObjectId(departmentId)) {
+        filter['organizationDetails.department'] = new mongoose.Types.ObjectId(departmentId);
+      }
+
+      // Role filter
+      if (roleId && isValidObjectId(roleId)) {
+        filter['organizationDetails.role'] = new mongoose.Types.ObjectId(roleId);
+      }
+
+      // Status filter
+      if (status && status !== 'all') {
+        filter.active = status === 'active';
+      }
+
+      // Aggregation pipeline for export
+      const pipeline: any[] = [
+        { $match: filter },
+        {
+          $lookup: {
+            from: 'organizations',
+            localField: 'organizationDetails.organization',
+            foreignField: '_id',
+            as: 'organizationDetails.organization'
+          }
+        },
+        {
+          $lookup: {
+            from: 'departments',
+            localField: 'organizationDetails.department',
+            foreignField: '_id',
+            as: 'organizationDetails.department'
+          }
+        },
+        {
+          $lookup: {
+            from: 'roles',
+            localField: 'organizationDetails.role',
+            foreignField: '_id',
+            as: 'organizationDetails.role'
+          }
+        },
+        {
+          $unwind: {
+            path: '$organizationDetails.organization',
+            preserveNullAndEmptyArrays: true
+          }
+        },
+        {
+          $unwind: {
+            path: '$organizationDetails.department',
+            preserveNullAndEmptyArrays: true
+          }
+        },
+        {
+          $unwind: {
+            path: '$organizationDetails.role',
+            preserveNullAndEmptyArrays: true
+          }
+        },
+        { $sort: { createdAt: -1 } }
+      ];
+
+      const users = await this.model.aggregate(pipeline);
+      return users;
+    } catch (error: any) {
+      throw this.handleError(error, 'getUsersForExport');
+    }
+  }
 }
 
 export default UserDao;

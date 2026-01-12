@@ -455,3 +455,7 @@ export const GROUP_MANAGER_INVALID = "Manager must be a valid ObjectId";
 export const GROUP_MEMBERS_REQUIRED = "Members are required";
 export const GROUP_MEMBERS_INVALID = "Members must be valid ObjectIds";
 export const GROUP_MEMBERS_MIN_LENGTH = "At least one member is required";
+
+// Analytics Messages
+export const USER_TRENDS_FETCHED = "User trends analytics fetched successfully";
+export const USERS_BY_DEPARTMENT_FETCHED = "Users by department analytics fetched successfully";

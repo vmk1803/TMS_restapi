@@ -4,6 +4,7 @@ import DepartmentService from "../services/db/departmentService";
 import { AppError } from "../common/errors/AppError";
 import { sendSuccessResp, sendPaginatedResponse } from "../utils/respUtils";
 import { asyncHandler } from "../common/middlewares/errorHandler";
+import { sendCSVResponse } from "../utils/csvGenerator";
 
 class DepartmentController {
   private departmentService = new DepartmentService();
@@ -113,6 +114,25 @@ class DepartmentController {
   getAllDepartments = asyncHandler(async (req: Request, res: Response) => {
     const departments = await this.departmentService.getAllDepartments();
     return sendSuccessResp(res, 200, DEPARTMENTS_FETCHED, departments, req);
+  });
+
+  // Export departments as CSV
+  exportDepartmentsCSV = asyncHandler(async (req: Request, res: Response) => {
+    const searchString = req.body.searchString as string | undefined;
+    const organizationId = req.body.organizationId as string | undefined;
+    const departmentId = req.body.departmentId as string | undefined;
+    const status = req.body.status as string | undefined;
+
+    const query = {
+      searchString,
+      organizationId,
+      departmentId,
+      status
+    };
+
+    const departments = await this.departmentService.exportDepartmentsAsCSV(query);
+    
+    return sendCSVResponse(res, departments, 'departments');
   });
 
   // Get departments by organization ID

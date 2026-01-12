@@ -353,6 +353,30 @@ class UserService extends BaseService<IUser> {
 
         return Object.keys(changes).length > 0 ? changes : null;
     }
+
+    /**
+     * Export all users as CSV with filters applied (no pagination)
+     */
+    async exportUsersAsCSV(query: Omit<UserServiceQuery, 'page' | 'pageSize'>): Promise<any[]> {
+        try {
+            const users = await this.userDao.getUsersForExport(query);
+            
+            // Transform data to return only required fields for CSV export
+            return users.map(user => ({
+                'Name': `${user.firstName || user.fname || ''} ${user.lastName || user.lname || ''}`.trim() || user.email.split('@')[0],
+                'Email': user.email || 'N/A',
+                'Mobile Number': user.mobileNumber || 'N/A',
+                'Company': user.organizationDetails?.organization?.organizationName || 'N/A',
+                'Role': user.organizationDetails?.role?.name || user.role || 'N/A',
+                'Department': user.organizationDetails?.department?.name || 'N/A',
+                'Status': user.active ? 'Active' : 'Inactive',
+                'Last Login': user.lastLogin ? new Date(user.lastLogin).toLocaleDateString('en-US') : 'Never',
+                'Created Date': user.createdAt ? new Date(user.createdAt).toLocaleDateString('en-US') : 'N/A'
+            }));
+        } catch (error) {
+            throw AppError.internal('Failed to export users');
+        }
+    }
 }
 
 export default UserService;
