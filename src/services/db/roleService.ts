@@ -259,6 +259,93 @@ class RoleService extends BaseService<IRole> {
     );
     return roles;
   }
+
+  /**
+   * Export all roles as CSV with filters applied (no pagination)
+   */
+  async exportRolesAsCSV(query: Omit<RoleServiceQuery, 'page' | 'pageSize'>): Promise<any[]> {
+    try {
+      const processedQuery = this.processSearchQuery(query);
+      
+      // Build filter similar to getRolesPaginated but without pagination
+      const matchFilter: any = {};
+
+      if (processedQuery.searchString) {
+        matchFilter.name = { $regex: this.escapeRegex(processedQuery.searchString), $options: 'i' };
+      }
+
+      if (processedQuery.permissionSection && processedQuery.permissionSection !== 'all') {
+        const validSections = ['projects', 'task', 'users', 'settings'];
+        if (!validSections.includes(processedQuery.permissionSection)) {
+          throw AppError.badRequest('Invalid permission section');
+        }
+        const fieldPath = `permissions.${processedQuery.permissionSection}`;
+        matchFilter[fieldPath] = { $exists: true };
+      }
+
+      // Aggregation pipeline without pagination
+      const aggregationPipeline: any[] = [
+        { $match: matchFilter },
+        {
+          $lookup: {
+            from: 'users',
+            localField: '_id',
+            foreignField: 'organizationDetails.role',
+            as: 'assignedUsers'
+          }
+        },
+        {
+          $addFields: {
+            userCount: {
+              $size: {
+                $filter: {
+                  input: '$assignedUsers',
+                  as: 'user',
+                  cond: {
+                    $and: [
+                      { $eq: ['$$user.active', true] },
+                      { $eq: ['$$user.deletedAt', null] }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          $project: {
+            assignedUsers: 0
+          }
+        },
+        { $sort: { createdAt: -1 } }
+      ];
+
+      const roles = await this.model.aggregate(aggregationPipeline);
+      
+      // Transform data to return only required fields for CSV export
+      return roles.map(role => {
+        // Format permissions as "SectionName: items separated by commas" with each section on new line
+        const permissionsFormatted = [];
+        if (role.permissions) {
+          for (const [key, value] of Object.entries(role.permissions)) {
+            if (Array.isArray(value) && value.length > 0) {
+              // Capitalize first letter of section name
+              const capitalizedKey = key.charAt(0).toUpperCase() + key.slice(1);
+              permissionsFormatted.push(`${capitalizedKey}: ${value.join(', ')}`);
+            }
+          }
+        }
+        
+        return {
+          'Role Name': role.name || 'N/A',
+          'Permissions': permissionsFormatted.length > 0 ? permissionsFormatted.join(' | ') : 'N/A',
+          'Assigned Users': role.userCount || 0
+        };
+      });
+    } catch (error) {
+      throw AppError.internal('Failed to export roles');
+    }
+  }
 }
 
 export default RoleService;

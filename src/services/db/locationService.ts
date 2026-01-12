@@ -6,6 +6,7 @@ import { AppError } from '../../common/errors/AppError';
 import { logError } from '../../utils/logger';
 import { validateObjectId, validatePaginationParams, validateUserId } from '../../common/utils/validationHelpers';
 import { ensureExists } from '../../common/utils/existenceHelpers';
+import LocationDao from '../../dao/locationDao';
 
 export interface CreateLocationServiceData {
   address: any; // Single address object
@@ -37,10 +38,12 @@ export interface PaginatedLocationsResult {
 
 class LocationService extends BaseService<ILocation> {
   private readonly activityService: LocationActivityService;
+  private readonly locationDao: LocationDao;
 
   constructor() {
     super(Location);
     this.activityService = new LocationActivityService();
+    this.locationDao = new LocationDao();
   }
 
   async createLocation(data: CreateLocationServiceData): Promise<ILocation> {
@@ -165,6 +168,139 @@ class LocationService extends BaseService<ILocation> {
     return locations;
   }
 
+  /**
+   * Export all locations as CSV with filters applied (no pagination)
+   */
+  async exportLocationsAsCSV(query: Omit<LocationServiceQuery, 'page' | 'pageSize'>): Promise<any[]> {
+    try {
+      const processedQuery = this.processSearchQuery(query);
+
+      // Build aggregation pipeline similar to getLocationsWithOrganization but without pagination
+      const pipeline: any[] = [];
+
+      // Build filter for aggregation
+      const matchFilter: any = { deletedAt: null };
+      if (processedQuery.createdBy) {
+        matchFilter.createdBy = processedQuery.createdBy;
+      }
+
+      // Search filter for locations
+      if (processedQuery.searchString) {
+        matchFilter.$or = [
+          { country: { $regex: processedQuery.searchString, $options: 'i' } },
+          { city: { $regex: processedQuery.searchString, $options: 'i' } },
+          { streetAddress: { $regex: processedQuery.searchString, $options: 'i' } },
+          { addressLine: { $regex: processedQuery.searchString, $options: 'i' } }
+        ];
+      }
+
+      pipeline.push({ $match: matchFilter });
+
+      // Lookup organizations that have this location in their locations array
+      pipeline.push({
+        $lookup: {
+          from: 'organizations',
+          let: { locationId: '$_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $in: [
+                    '$$locationId',
+                    {
+                      $map: {
+                        input: '$locations',
+                        as: 'locId',
+                        in: { $toObjectId: '$$locId' }
+                      }
+                    }
+                  ]
+                },
+                deletedAt: null
+              }
+            },
+            {
+              $project: {
+                _id: 1,
+                organizationName: 1,
+                email: 1
+              }
+            }
+          ],
+          as: 'organization'
+        }
+      });
+
+      // Unwind organization array (take first match if multiple)
+      pipeline.push({
+        $addFields: {
+          organization: { $arrayElemAt: ['$organization', 0] }
+        }
+      });
+
+      // Lookup users assigned to this location
+      pipeline.push({
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: 'organizationDetails.location',
+          as: 'assignedUsers'
+        }
+      });
+
+      // Add user count field (only count active, non-deleted users)
+      pipeline.push({
+        $addFields: {
+          userCount: {
+            $size: {
+              $filter: {
+                input: '$assignedUsers',
+                as: 'user',
+                cond: {
+                  $and: [
+                    { $eq: ['$$user.active', true] },
+                    { $eq: ['$$user.deletedAt', null] }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      });
+
+      // Remove the users array from response (we only need the count)
+      pipeline.push({
+        $project: {
+          assignedUsers: 0
+        }
+      });
+
+      // Sort by creation date
+      pipeline.push({ $sort: { createdAt: -1 } });
+
+      const records = await this.model.aggregate(pipeline);
+
+      // Transform records to match expected format
+      const transformedRecords = records.map((record: any) => ({
+        id: record._id.toString(),
+        country: record.country,
+        state: record.state,
+        city: record.city,
+        timeZone: record.timeZone,
+        addressLine: record.addressLine,
+        streetAddress: record.streetAddress,
+        zip: record.zip,
+        userCount: record.userCount || "0",
+        organization: record.organization?.organizationName || 'N/A'
+      }));
+
+      return transformedRecords;
+    } catch (error) {
+      logError(error as Error, { query }, 'locationService.ts');
+      throw AppError.internal('Failed to export locations');
+    }
+  }
+
   // Private helper methods for business logic
 
   private validateAddress(address: any): void {
@@ -226,6 +362,10 @@ class LocationService extends BaseService<ILocation> {
 
   private isValidObjectId(id: string): boolean {
     return /^[0-9a-fA-F]{24}$/.test(id);
+  }
+
+  private toObjectId(id: string) {
+    return new (this.model as any).base.Types.ObjectId(id);
   }
 }
 

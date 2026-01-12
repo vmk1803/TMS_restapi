@@ -9,6 +9,7 @@ import { ValidatedUpdateLocation } from "../validations/schema/vLocationSchema";
 import { asyncHandler } from "../common/middlewares/errorHandler";
 import { safeParseAsync, flatten } from "valibot";
 import { VSingleLocationSchema } from "../validations/schema/vLocationSchema";
+import { sendCSVResponse } from "../utils/csvGenerator";
 
 class LocationController {
   private locationService = new LocationService();
@@ -143,6 +144,23 @@ class LocationController {
     const locations = await this.locationService.getAllLocations();
 
     return sendSuccessResp(res, 200, LOCATIONS_FETCHED, locations, req);
+  });
+
+  // Export locations as CSV
+  exportLocationsCSV = asyncHandler(async (req: Request, res: Response) => {
+    const searchString = req.body.searchTerm as string | undefined;  // Changed from searchString to searchTerm
+    const organizationId = req.body.organizationId as string | undefined;
+
+    const query = {
+      searchString,  // Keep internal property name as searchString since service expects this
+      organizationId
+    };
+
+    console.log("Export Locations CSV Query:", query);
+
+    const locations = await this.locationService.exportLocationsAsCSV(query);
+    
+    return sendCSVResponse(res, locations, 'locations');
   });
 }
 

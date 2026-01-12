@@ -316,6 +316,99 @@ class DepartmentService extends BaseService<IDepartment> {
     );
     return departments;
   }
+
+  /**
+   * Export all departments as CSV with filters applied (no pagination)
+   */
+  async exportDepartmentsAsCSV(query: Omit<DepartmentServiceQuery, 'page' | 'pageSize'>): Promise<any[]> {
+    try {
+      const processedQuery = this.processSearchQuery(query);
+      
+      // Build aggregation pipeline similar to getDepartmentsPaginated but without pagination
+      const pipeline: any[] = [];
+      const matchStage: any = {};
+
+      if (processedQuery.organizationId) {
+        matchStage.organization = new mongoose.Types.ObjectId(processedQuery.organizationId);
+      }
+      if (processedQuery.departmentId) {
+        validateObjectId(processedQuery.departmentId, 'Department ID');
+        matchStage._id = new mongoose.Types.ObjectId(processedQuery.departmentId);
+      }
+      if (processedQuery.status) {
+        matchStage.status = processedQuery.status;
+      }
+
+      if (Object.keys(matchStage).length > 0) {
+        pipeline.push({ $match: matchStage });
+      }
+
+      // Lookup organization
+      pipeline.push({
+        $lookup: {
+          from: 'organizations',
+          localField: 'organization',
+          foreignField: '_id',
+          as: 'organization'
+        }
+      });
+
+      pipeline.push({
+        $unwind: {
+          path: '$organization',
+          preserveNullAndEmptyArrays: true
+        }
+      });
+
+      // Lookup head of department
+      pipeline.push({
+        $lookup: {
+          from: 'users',
+          localField: 'headOfDepartment',
+          foreignField: '_id',
+          as: 'headOfDepartment'
+        }
+      });
+
+      pipeline.push({
+        $unwind: {
+          path: '$headOfDepartment',
+          preserveNullAndEmptyArrays: true
+        }
+      });
+
+      // Search filter
+      if (processedQuery.searchString) {
+        pipeline.push({
+          $match: {
+            $or: [
+              { name: { $regex: processedQuery.searchString, $options: 'i' } },
+              { 'organization.organizationName': { $regex: processedQuery.searchString, $options: 'i' } },
+              { 'headOfDepartment.firstName': { $regex: processedQuery.searchString, $options: 'i' } },
+              { 'headOfDepartment.lastName': { $regex: processedQuery.searchString, $options: 'i' } }
+            ]
+          }
+        });
+      }
+
+      pipeline.push({ $sort: { createdAt: -1 } });
+
+      const records = await this.model.aggregate(pipeline);
+      
+      // Transform data to return only required fields for CSV export
+      return records.map(department => ({
+        'Department Name': department.name,
+        'Organization': department.organization?.organizationName || 'N/A',
+        'Head of Department': department.headOfDepartment 
+          ? `${department.headOfDepartment.fname || department.headOfDepartment.firstName || ''} ${department.headOfDepartment.lname || department.headOfDepartment.lastName || ''}`.trim()
+          : 'N/A',
+        'Status': department.status ? department.status.charAt(0).toUpperCase() + department.status.slice(1) : 'Active',
+        'Created Date': department.createdAt ? new Date(department.createdAt).toLocaleDateString('en-US') : 'N/A'
+      }));
+    } catch (error) {
+      throw AppError.internal('Failed to export departments');
+    }
+  }
 }
 
 export default DepartmentService;

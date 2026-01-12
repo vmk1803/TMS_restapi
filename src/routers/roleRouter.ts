@@ -14,6 +14,9 @@ roleRouter.patch('/:id', authenticateToken, roleController.updateRole);
 // Delete role - requires authentication
 roleRouter.delete('/:id', authenticateToken, roleController.deleteRole);
 
+// Export roles as CSV
+roleRouter.post('/export-csv', authenticateToken, roleController.exportRolesCSV);
+
 // Public read operations (no authentication required)
 // Get all roles (no pagination) - must be before /:id route
 roleRouter.get('/all', authenticateToken, roleController.getAllRoles);

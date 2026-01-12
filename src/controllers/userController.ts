@@ -13,6 +13,7 @@ import UserService from '../services/db/userService';
 import UserDao from '../dao/userDao';
 import { AppError } from '../common/errors/AppError';
 import { sendSuccessResp, sendPaginatedResponse } from '../utils/respUtils';
+import { sendCSVResponse } from '../utils/csvGenerator';
 import { safeParseAsync, flatten } from 'valibot';
 import { VCreateUserSchema, VUpdateUserSchema } from '../validations/schema/vUserManagementSchema';
 
@@ -278,6 +279,35 @@ class UserController {
       await this.userService.updateUser(id, { password: hashedPassword }, user._id);
 
       return sendSuccessResp(res, 200, 'Password reset successfully', { id }, req);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Export users as CSV
+   */
+  exportUsersCSV = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const searchString = req.body.searchTerm as string | undefined;
+      const organizationId = req.body.organizationId as string | undefined;
+      const departmentId = req.body.departmentId as string | undefined;
+      const roleId = req.body.roleId as string | undefined;
+      const status = req.body.status as string | undefined;
+
+      const query = {
+        searchString,
+        organizationId,
+        departmentId,
+        roleId,
+        status
+      };
+
+      console.log("Export Users CSV Query:", query);
+
+      const users = await this.userService.exportUsersAsCSV(query);
+      
+      return sendCSVResponse(res, users, 'users');
     } catch (error) {
       next(error);
     }
