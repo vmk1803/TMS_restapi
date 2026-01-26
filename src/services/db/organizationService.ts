@@ -11,6 +11,7 @@ export interface CreateOrganizationServiceData {
   email: string;
   contactNumber: string;
   description: string;
+  status?: string;
   primaryAdmin: string;
   locations: string[];
   createdBy: string;
@@ -22,6 +23,7 @@ export interface UpdateOrganizationServiceData {
   email?: string;
   contactNumber?: string;
   description?: string;
+  status?: string;
   primaryAdmin?: string;
   locations?: string[];
 }
@@ -31,6 +33,7 @@ export interface OrganizationServiceQuery {
   pageSize?: number;
   searchString?: string;
   createdBy?: string;
+  status?: string;
 }
 
 export interface PaginatedOrganizationsResult {
@@ -64,6 +67,7 @@ class OrganizationService extends BaseService<IOrganization> {
       email: data.email,
       contactNumber: data.contactNumber,
       description: data.description,
+      status: data.status || 'active',
       locations: data.locations,
       createdBy: new mongoose.Types.ObjectId(data.createdBy)
     };
@@ -81,15 +85,97 @@ class OrganizationService extends BaseService<IOrganization> {
 
     const createdOrganization = await this.create(transformedData);
 
-    // Post-process the created organization
-    this.postProcessOrganization(createdOrganization);
-    return createdOrganization;
+    // Return the populated organization data for consistency
+    const populatedOrganization = await this.getOrganizationById(createdOrganization._id.toString());
+    if (!populatedOrganization) {
+      throw AppError.internal('Failed to retrieve created organization');
+    }
+    return populatedOrganization;
   }
 
   async getOrganizationById(id: string): Promise<IOrganization | null> {
     validateObjectId(id, 'Organization ID');
 
-    const organization = await this.findById(id, 'locations');
+    const [organization] = await Organization.aggregate([
+      { $match: { _id: new mongoose.Types.ObjectId(id), deletedAt: null } },
+      // Populate locations
+      {
+        $lookup: {
+          from: 'locations',
+          localField: 'locations',
+          foreignField: '_id',
+          as: 'locations'
+        }
+      },
+      // Populate primaryAdmin
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'primaryAdmin',
+          foreignField: '_id',
+          as: 'primaryAdmin'
+        }
+      },
+      { $unwind: { path: '$primaryAdmin', preserveNullAndEmptyArrays: true } },
+      // Populate primaryAdmin's role and department
+      {
+        $lookup: {
+          from: 'roles',
+          localField: 'primaryAdmin.organizationDetails.role',
+          foreignField: '_id',
+          as: 'primaryAdminRole',
+          pipeline: [{ $project: { name: 1 } }]
+        }
+      },
+      {
+        $lookup: {
+          from: 'departments',
+          localField: 'primaryAdmin.organizationDetails.department',
+          foreignField: '_id',
+          as: 'primaryAdminDepartment',
+          pipeline: [{ $project: { name: 1 } }]
+        }
+      },
+      // Populate createdBy
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'createdBy',
+          foreignField: '_id',
+          as: 'createdBy',
+          pipeline: [{ $project: { firstName: 1, lastName: 1 } }]
+        }
+      },
+      { $unwind: { path: '$createdBy', preserveNullAndEmptyArrays: true } },
+      // Populate departments for this organization
+      {
+        $lookup: {
+          from: 'departments',
+          localField: '_id',
+          foreignField: 'organization',
+          as: 'departments',
+          pipeline: [
+            { $match: { deletedAt: { $exists: true, $eq: null } } },
+            { $project: { name: 1 } }
+          ]
+        }
+      },
+      // Add computed fields
+      {
+        $addFields: {
+          'primaryAdmin.role': { $arrayElemAt: ['$primaryAdminRole.name', 0] },
+          'primaryAdmin.department': { $arrayElemAt: ['$primaryAdminDepartment.name', 0] }
+        }
+      },
+      // Clean up temporary fields
+      {
+        $project: {
+          primaryAdminRole: 0,
+          primaryAdminDepartment: 0
+        }
+      }
+    ]);
+
     if (organization) {
       this.postProcessOrganization(organization);
     }
@@ -100,34 +186,97 @@ class OrganizationService extends BaseService<IOrganization> {
     const validatedQuery = this.validatePaginationQuery(query);
     const processedQuery = this.processSearchQuery(validatedQuery);
 
-    // Build filter for BaseService
-    const filter: any = { deletedAt: null };
+    // Build match conditions
+    const matchConditions: any = { deletedAt: null };
     if (processedQuery.createdBy) {
-      filter.createdBy = processedQuery.createdBy;
+      matchConditions.createdBy = new mongoose.Types.ObjectId(processedQuery.createdBy);
+    }
+    if (processedQuery.status) {
+      matchConditions.status = processedQuery.status;
     }
     if (processedQuery.searchString) {
-      filter.$or = [
+      matchConditions.$or = [
         { organizationName: { $regex: processedQuery.searchString, $options: 'i' } },
-        { email: { $regex: processedQuery.searchString, $options: 'i' } },
         { description: { $regex: processedQuery.searchString, $options: 'i' } }
       ];
     }
 
-    const result = await this.findWithPagination(
-      filter,
-      { page: processedQuery.page, pageSize: processedQuery.pageSize },
-      { createdAt: -1 }
-    );
+    // Single aggregation pipeline with facet for count and data
+    const pipeline: mongoose.PipelineStage[] = [
+      { $match: matchConditions },
+      
+      // Lookup departments count
+      {
+        $lookup: {
+          from: 'departments',
+          localField: '_id',
+          foreignField: 'organization',
+          as: 'departments',
+          pipeline: [{ $match: { deletedAt: { $exists: true, $eq: null } } }]
+        }
+      },
+      
+      // Lookup users count  
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: 'organizationDetails.organization',
+          as: 'users',
+          pipeline: [{ $match: { deletedAt: { $exists: true, $eq: null } } }]
+        }
+      },
+      
+      // Add computed fields
+      {
+        $addFields: {
+          departmentCount: { $size: '$departments' },
+          userCount: { $size: '$users' }
+        }
+      },
+      
+      // Remove lookup arrays
+      { $project: { departments: 0, users: 0 } },
+      
+      // Sort
+      { $sort: { createdAt: -1 } },
+      
+      // Use facet to get both count and paginated data in single query
+      {
+        $facet: {
+          totalCount: [{ $count: 'count' }],
+          paginatedResults: [
+            { $skip: (processedQuery.page! - 1) * processedQuery.pageSize! },
+            { $limit: processedQuery.pageSize! }
+          ]
+        }
+      }
+    ];
+
+    const [result] = await Organization.aggregate(pipeline);
+    const totalRecords = result.totalCount[0]?.count || 0;
+    const organizations = result.paginatedResults;
 
     // Post-process results
-    result.data = result.data.map((organization: IOrganization) => {
+    const processedRecords = organizations.map((organization: IOrganization) => {
       this.postProcessOrganization(organization);
       return organization;
     });
 
+    // Calculate pagination info
+    const totalPages = Math.ceil(totalRecords / processedQuery.pageSize!);
+    const currentPage = processedQuery.page!;
+
     return {
-      pagination_info: result.pagination,
-      records: result.data
+      pagination_info: {
+        total_records: totalRecords,
+        total_pages: totalPages,
+        page_size: processedQuery.pageSize!,
+        current_page: currentPage,
+        next_page: currentPage < totalPages ? currentPage + 1 : null,
+        prev_page: currentPage > 1 ? currentPage - 1 : null,
+      },
+      records: processedRecords
     };
   }
 
@@ -169,12 +318,15 @@ class OrganizationService extends BaseService<IOrganization> {
       transformedData.primaryAdmin = new mongoose.Types.ObjectId(data.primaryAdmin);
     }
 
+    // Update the organization
     const updatedOrganization = await this.updateById(id, transformedData);
 
-    if (updatedOrganization) {
-      this.postProcessOrganization(updatedOrganization);
+    if (!updatedOrganization) {
+      return null;
     }
-    return updatedOrganization;
+
+    // Return the populated organization data
+    return await this.getOrganizationById(id);
   }
 
   async deleteOrganization(id: string): Promise<boolean> {
@@ -243,6 +395,39 @@ class OrganizationService extends BaseService<IOrganization> {
       }));
     } catch (error) {
       throw AppError.internal('Failed to export organizations');
+    }
+  }
+
+  /**
+   * Bulk update organization status
+   */
+  async bulkUpdateStatus(organizationIds: string[], status: string): Promise<{ modifiedCount: number }> {
+    // Validate all IDs are valid ObjectIds
+    organizationIds.forEach(id => validateObjectId(id, 'Organization ID'));
+
+    // Validate status
+    if (!['active', 'inactive', 'suspended'].includes(status)) {
+      throw AppError.badRequest('Invalid status. Must be: active, inactive, or suspended');
+    }
+
+    try {
+      const result = await Organization.updateMany(
+        { 
+          _id: { $in: organizationIds.map(id => new mongoose.Types.ObjectId(id)) },
+          deletedAt: null // Only update non-deleted organizations
+        },
+        { 
+          $set: { 
+            status: status,
+            updatedAt: new Date()
+          } 
+        }
+      );
+
+      return { modifiedCount: result.modifiedCount };
+    } catch (error) {
+      logError(error as Error, {}, 'Bulk update organization status failed');
+      throw AppError.internal('Failed to update organization statuses');
     }
   }
 

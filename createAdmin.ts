@@ -6,7 +6,7 @@ import User from "./src/models/User";
 async function createAdminUser() {
   try {
     // Connect to MongoDB
-    const mongoUri = process.env.MONGO_URI || 'mongodb+srv://vmk1803_db_user:gTg6FZZJZ7goV4g3@cluster0.7bn7o7g.mongodb.net/?appName=Cluster0';
+    const mongoUri = process.env.MONGO_URI || 'mongodb://localhost:27017/tms';
     await mongoose.connect(mongoUri);
     console.log('Connected to MongoDB');
 

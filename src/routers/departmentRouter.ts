@@ -14,6 +14,8 @@ departmentRouter.patch('/:id', authenticateToken, departmentController.updateDep
 // Delete department - requires authentication
 departmentRouter.delete('/:id', authenticateToken, departmentController.deleteDepartment);
 
+departmentRouter.post('/bulk-update', authenticateToken, departmentController.bulkOperation);
+
 // Export departments as CSV
 departmentRouter.post('/export-csv', authenticateToken, departmentController.exportDepartmentsCSV);
 

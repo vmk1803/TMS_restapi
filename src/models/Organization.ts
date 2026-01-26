@@ -5,6 +5,7 @@ export interface IOrganization extends Document {
   email: string;
   contactNumber: string;
   description: string;
+  status: string;
   primaryAdmin?: mongoose.Types.ObjectId;
   locations: mongoose.Types.ObjectId[]; // Array of location IDs
   createdBy: mongoose.Types.ObjectId;
@@ -31,6 +32,11 @@ const OrganizationSchema = new Schema<IOrganization>({
     trim: true
   },
   description: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  status: {
     type: String,
     required: true,
     trim: true

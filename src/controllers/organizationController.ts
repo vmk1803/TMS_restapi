@@ -25,6 +25,7 @@ console.log("Create Organization Request Data:", requestData);
       email: requestData.email,
       contactNumber: requestData.contactNumber,
       description: requestData.description,
+      status: requestData.status,
       primaryAdmin: requestData.primaryAdmin,
       locations: requestData.locations || [],
       createdBy: user._id
@@ -35,7 +36,7 @@ console.log("Create Organization Request Data:", requestData);
 
   // Get organization by ID
   getOrganizationById = asyncHandler(async (req: Request, res: Response) => {
-    const { id } = req.params;
+    const id = req.params.id as string;
 
     if (!id) {
       throw AppError.badRequest("Organization ID is required");
@@ -55,12 +56,14 @@ console.log("Create Organization Request Data:", requestData);
     const page = +(req.query.page as string) || 1;
     const pageSize = +(req.query.page_size as string) || 10;
     const searchString = req.query.search_string as string | undefined;
+    const status = req.query.status as string | undefined;
     const user = (req as any).user_payload;
 
     const query = {
       page,
       pageSize,
       searchString,
+      status,
       createdBy: user?._id // Optional, for filtering if user is logged in
     };
 
@@ -71,7 +74,7 @@ console.log("Create Organization Request Data:", requestData);
 
   // Update organization by ID
   updateOrganization = asyncHandler(async (req: Request, res: Response) => {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const requestData = req.body;
 
     if (!id) {
@@ -89,7 +92,7 @@ console.log("Create Organization Request Data:", requestData);
 
   // Delete organization by ID (soft delete)
   deleteOrganization = asyncHandler(async (req: Request, res: Response) => {
-    const { id } = req.params;
+    const id = req.params.id as string;
 
     if (!id) {
       throw AppError.badRequest("Organization ID is required");
@@ -133,6 +136,27 @@ console.log("Create Organization Request Data:", requestData);
     const organizations = await this.organizationService.exportOrganizationsAsCSV(query);
     
     return sendCSVResponse(res, organizations, 'organizations');
+  });
+
+  // Bulk update organization status
+  bulkUpdateStatus = asyncHandler(async (req: Request, res: Response) => {
+    const { organizationIds, status } = req.body;
+
+    // Validation
+    if (!organizationIds || !Array.isArray(organizationIds) || organizationIds.length === 0) {
+      throw AppError.badRequest("Organization IDs array is required");
+    }
+
+    if (!status || !['active', 'inactive', 'suspended'].includes(status)) {
+      throw AppError.badRequest("Valid status is required (active, inactive, suspended)");
+    }
+
+    const result = await this.organizationService.bulkUpdateStatus(organizationIds, status);
+
+    return sendSuccessResp(res, 200, `${result.modifiedCount} organization(s) status updated to ${status}`, {
+      modifiedCount: result.modifiedCount,
+      status: status
+    }, req);
   });
 }
 

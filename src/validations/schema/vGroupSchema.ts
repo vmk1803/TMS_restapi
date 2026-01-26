@@ -50,10 +50,7 @@ const VUpdateGroupSchema = object({
     string(GROUP_MANAGER_INVALID)
   ),
   members: nullish(
-    pipe(
-      array(string(GROUP_MEMBERS_INVALID)),
-      minLength(1, GROUP_MEMBERS_MIN_LENGTH)
-    )
+    array(string(GROUP_MEMBERS_INVALID))
   ),
   description: nullish(
     string(),

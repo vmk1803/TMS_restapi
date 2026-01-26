@@ -5,7 +5,7 @@ import { TaskAssignee } from "../db/schema/taskAssignees";
 import { ValidatedForgotPassword } from "../validations/schema/vForgotPasswordSchema";
 import { ValidatedLogin } from "../validations/schema/vLoginSchema";
 import { ValidatedPasswordChange, ValidatedUpdateUserProfilePic, ValidatedUpdateUserStatus, ValidatedAddUser, ValidatedUpdateUser } from "../validations/schema/vUserSchema";
-import { ValidatedLocation, ValidatedUpdateLocation } from "../validations/schema/vLocationSchema";
+import { ValidatedLocation, ValidatedUpdateLocation, ValidatedDeleteLocation } from "../validations/schema/vLocationSchema";
 import { ValidatedGroup, ValidatedUpdateGroup } from "../validations/schema/vGroupSchema";
 
 import { DBTableRow } from "./db.types";
@@ -98,9 +98,6 @@ export interface EnhancedUserStatistics {
   totalGroups: number;
   totalDepartments: number;
   recentlyAddedUsers: RecentUser[];
-  roleBreakdown: RoleBreakdown[];
-  organizationsOverview: OrganizationOverview[];
-  monthlyData?: MonthlyUserData[];
   changeMetrics?: ChangeMetrics;
 }
 
@@ -557,4 +554,4 @@ export type GroupActivity = 'group:create' | 'group:update' | 'group:delete' | '
 export type AppActivity = PasswordActivity | LoginActivity | ProjectActivity | UserActivity | TaskActivity | FileActivity | LocationActivity | GroupActivity;
 
 export type ValidatedRequest = ValidatedLogin | ValidatedForgotPassword | ValidatedPasswordChange | ValidatedUpdateUserStatus
-  | ValidatedUpdateUserProfilePic | ValidatedAddUser | ValidatedUpdateUser | ValidatedLocation | ValidatedUpdateLocation | ValidatedGroup | ValidatedUpdateGroup;
+  | ValidatedUpdateUserProfilePic | ValidatedAddUser | ValidatedUpdateUser | ValidatedLocation | ValidatedUpdateLocation | ValidatedDeleteLocation | ValidatedGroup | ValidatedUpdateGroup;

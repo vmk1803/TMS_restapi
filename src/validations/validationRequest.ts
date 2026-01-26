@@ -4,7 +4,7 @@ import BadRequestException from "../exceptions/badRequestException";
 import { VForgotPasswordSchema } from "./schema/vForgotPasswordSchema";
 import { VLoginSchema } from "./schema/vLoginSchema";
 import { VAddUserSchema, VAdminUserSchema, VRegularUserSchema, VResetPasswordByAdminSchema, VResetPasswordSchema, VUpdatePasswordSchema, VUpdateUserProfilePicSchema, VUpdateUserSchema, VUpdateUserStatusSchema } from "./schema/vUserSchema";
-import { VLocationSchema, VUpdateLocationSchema, VSingleLocationSchema } from "./schema/vLocationSchema";
+import { VLocationSchema, VUpdateLocationSchema, VSingleLocationSchema, VDeleteLocationSchema } from "./schema/vLocationSchema";
 import { VGroupSchema, VUpdateGroupSchema } from "./schema/vGroupSchema";
 export const validateRequest = async<R extends ValidatedRequest>(actionType: AppActivity, reqData: any, errorMessage: string) => {
 
@@ -50,6 +50,9 @@ export const validateRequest = async<R extends ValidatedRequest>(actionType: App
     case 'location:update':
       schema = VUpdateLocationSchema;
       break;
+    case 'location:delete':
+      schema = VDeleteLocationSchema;
+      break;
     case 'group:create':
       schema = VGroupSchema;
       break;
@@ -63,7 +66,9 @@ export const validateRequest = async<R extends ValidatedRequest>(actionType: App
   });
 
   if (!validation.success) {
-    throw new BadRequestException(errorMessage);
+    const errors = flatten(validation.issues);
+    const errorDetails = JSON.stringify(errors.nested || errors.root || validation.issues);
+    throw new BadRequestException(`${errorMessage}: ${errorDetails}`);
   }
 
   return validation.output as R;

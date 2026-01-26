@@ -13,6 +13,7 @@ usersRouter.get('/my', isAuthorized, requireUserOrAdminRole, userController.getM
 // Only admin can create, update, delete users
 usersRouter.post('/', isAuthorized, requireUserRoleForUsers, userController.createUser);
 usersRouter.post('/export-csv', isAuthorized, userController.exportUsersCSV);
+usersRouter.post('/bulk-update', isAuthorized, requireUserRoleForUsers, userController.bulkOperation);
 usersRouter.patch('/:id', isAuthorized, requireUserRoleForUsers, userController.updateUser);
 usersRouter.patch('/:id/reset-password', isAuthorized, requireUserRoleForUsers, userController.resetPasswordByAdmin);
 usersRouter.delete('/:id', isAuthorized, requireUserRoleForUsers, userController.deleteUser);

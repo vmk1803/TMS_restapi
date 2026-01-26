@@ -17,11 +17,11 @@ export interface CreateGroupServiceData {
 }
 
 export interface UpdateGroupServiceData {
-  name?: string;
-  department?: string;
-  manager?: string;
-  members?: string[];
-  description?: string;
+  name?: string | null;
+  department?: string | null;
+  manager?: string | null;
+  members?: string[] | null;
+  description?: string | null;
 }
 
 export interface GroupServiceQuery {
@@ -29,6 +29,7 @@ export interface GroupServiceQuery {
   pageSize?: number;
   search_string?: string;
   department?: string;
+  group?: string;
   status?: string;
 }
 
@@ -59,6 +60,15 @@ class GroupService extends BaseService<IGroup> {
   async createGroup(data: CreateGroupServiceData): Promise<IGroup> {
     if (!data.name || !data.department || !data.manager || !data.members || data.members.length === 0) {
       throw AppError.badRequest('Group data is incomplete');
+    }
+
+    // Check for duplicate group name (case-insensitive)
+    const existingGroup = await this.findOne({
+      name: { $regex: `^${this.escapeRegex(data.name)}$`, $options: 'i' },
+      deletedAt: null
+    });
+    if (existingGroup) {
+      throw AppError.badRequest('Group with this name already exists');
     }
 
     const groupData = {
@@ -93,7 +103,72 @@ class GroupService extends BaseService<IGroup> {
   async getGroupById(id: string): Promise<IGroup | null> {
     validateObjectId(id, 'Group ID');
 
-    const group = await this.findById(id, ['department', 'manager', 'members']);
+    const [group] = await Group.aggregate([
+      { $match: { _id: this.toObjectId(id), deletedAt: null } },
+      // Populate department
+      {
+        $lookup: {
+          from: 'departments',
+          localField: 'department',
+          foreignField: '_id',
+          as: 'department'
+        }
+      },
+      { $unwind: { path: '$department', preserveNullAndEmptyArrays: true } },
+      // Populate manager
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'manager',
+          foreignField: '_id',
+          as: 'manager'
+        }
+      },
+      { $unwind: { path: '$manager', preserveNullAndEmptyArrays: true } },
+      // Populate manager's role and department
+      {
+        $lookup: {
+          from: 'roles',
+          localField: 'manager.organizationDetails.role',
+          foreignField: '_id',
+          as: 'managerRole',
+          pipeline: [{ $project: { name: 1 } }]
+        }
+      },
+      {
+        $lookup: {
+          from: 'departments',
+          localField: 'manager.organizationDetails.department',
+          foreignField: '_id',
+          as: 'managerDepartment',
+          pipeline: [{ $project: { name: 1 } }]
+        }
+      },
+      // Populate members
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'members',
+          foreignField: '_id',
+          as: 'members'
+        }
+      },
+      // Add computed fields
+      {
+        $addFields: {
+          'manager.role': { $arrayElemAt: ['$managerRole.name', 0] },
+          'manager.department': { $arrayElemAt: ['$managerDepartment.name', 0] }
+        }
+      },
+      // Clean up temporary fields
+      {
+        $project: {
+          managerRole: 0,
+          managerDepartment: 0
+        }
+      }
+    ]);
+
     return group;
   }
 
@@ -108,6 +183,9 @@ class GroupService extends BaseService<IGroup> {
     }
     if (processedQuery.department) {
       filter.department = processedQuery.department;
+    }
+    if (processedQuery.group) {
+      filter._id = processedQuery.group;
     }
 
     const result = await this.findWithPagination(
@@ -129,6 +207,18 @@ class GroupService extends BaseService<IGroup> {
     // Check if group exists
     const existingGroup = await this.findById(id);
     ensureExists(existingGroup, 'Group', id);
+
+    // Check for duplicate group name (if name is being updated)
+    if (data.name) {
+      const duplicateGroup = await this.findOne({
+        name: { $regex: `^${this.escapeRegex(data.name)}$`, $options: 'i' },
+        _id: { $ne: id },
+        deletedAt: null
+      });
+      if (duplicateGroup) {
+        throw AppError.badRequest('Group with this name already exists');
+      }
+    }
 
     const updateData: any = { updatedAt: new Date() };
 
@@ -155,6 +245,17 @@ class GroupService extends BaseService<IGroup> {
     return await this.softDeleteById(id);
   }
 
+  /**
+   * Bulk soft delete multiple groups
+   */
+  async bulkSoftDelete(ids: string[]): Promise<{ success: string[], failed: string[], successCount: number, failedCount: number }> {
+    try {
+      return await this.softDeleteByIds(ids, 'deletedAt');
+    } catch (error: any) {
+      throw this.handleError(error, 'bulkSoftDelete');
+    }
+  }
+
   async getAllGroups(): Promise<IGroup[]> {
     const groups = await this.findAll(
       { deletedAt: null },
@@ -179,6 +280,9 @@ class GroupService extends BaseService<IGroup> {
       }
       if (processedQuery.department) {
         filter.department = processedQuery.department;
+      }
+      if (processedQuery.group) {
+        filter._id = processedQuery.group;
       }
 
       const groups = await this.findAll(
@@ -364,6 +468,10 @@ class GroupService extends BaseService<IGroup> {
 
   private toObjectId(id: string) {
     return new this.model.base.Types.ObjectId(id);
+  }
+
+  private escapeRegex(str: string): string {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 }
 

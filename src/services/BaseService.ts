@@ -171,6 +171,46 @@ export class BaseService<T extends Document> {
     }
   }
 
+  async softDeleteByIds(ids: string[], deletedAtField: string = 'deletedAt'): Promise<{ success: string[], failed: string[], successCount: number, failedCount: number }> {
+    try {
+      const updateData: any = {};
+      updateData[deletedAtField] = new Date();
+
+      const results = {
+        success: [] as string[],
+        failed: [] as string[],
+        successCount: 0,
+        failedCount: 0
+      };
+
+      // Process each ID individually to handle partial failures
+      for (const id of ids) {
+        try {
+          const result = await this.model.findByIdAndUpdate(
+            id,
+            updateData,
+            { new: true }
+          );
+          
+          if (result) {
+            results.success.push(id);
+            results.successCount++;
+          } else {
+            results.failed.push(id);
+            results.failedCount++;
+          }
+        } catch (error: any) {
+          results.failed.push(id);
+          results.failedCount++;
+        }
+      }
+
+      return results;
+    } catch (error: any) {
+      throw this.handleError(error, 'softDeleteByIds');
+    }
+  }
+
   async countDocuments(filter: FilterQuery<T> = {}): Promise<number> {
     try {
       return await this.model.countDocuments(filter);

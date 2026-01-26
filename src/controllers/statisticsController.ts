@@ -128,7 +128,10 @@ class StatisticsController {
    * Get role breakdown with percentages
    */
   private async getRoleBreakdown(totalUsers: number, year?: number): Promise<RoleBreakdown[]> {
-    const matchConditions: any = { deletedAt: null, 'organizationDetails.role': { $exists: true } };
+    const matchConditions: any = {
+      deletedAt: null,
+      'organizationDetails.role': { $ne: null, $type: 'objectId' }
+    };
     
     // Add year filtering if provided
     if (year) {
@@ -168,19 +171,24 @@ class StatisticsController {
       }
     ]);
 
-    return roleBreakdownAggregation.map(role => ({
-      roleId: role.roleId.toString(),
-      roleName: role.roleName || 'Unknown',
-      userCount: role.userCount,
-      percentage: totalUsers > 0 ? Math.round((role.userCount / totalUsers) * 100) : 0
-    }));
+    return roleBreakdownAggregation
+      .filter(role => role.roleId)
+      .map(role => ({
+        roleId: role.roleId.toString(),
+        roleName: role.roleName || 'Unknown',
+        userCount: role.userCount,
+        percentage: totalUsers > 0 ? Math.round((role.userCount / totalUsers) * 100) : 0
+      }));
   }
 
   /**
    * Get organizations overview
    */
   private async getOrganizationsOverviewData(year?: number): Promise<OrganizationOverview[]> {
-    const matchConditions: any = { deletedAt: null, 'organizationDetails.organization': { $exists: true } };
+    const matchConditions: any = {
+      deletedAt: null,
+      'organizationDetails.organization': { $ne: null, $type: 'objectId' }
+    };
     
     // Add year filtering if provided
     if (year) {
@@ -225,49 +233,6 @@ class StatisticsController {
       organizationName: org.organizationName || 'Unknown',
       userCount: org.userCount
     }));
-  }
-
-  /**
-   * Get monthly analytics data for backward compatibility
-   */
-  private async getMonthlyData(year: string, roleId?: string): Promise<MonthlyUserData[]> {
-    const targetYear = parseInt(year);
-
-    const matchConditions: any = {
-      deletedAt: null,
-      createdAt: {
-        $gte: new Date(targetYear, 0, 1),
-        $lte: new Date(targetYear, 11, 31, 23, 59, 59),
-      }
-    };
-
-    if (roleId) {
-      matchConditions['organizationDetails.role'] = new mongoose.Types.ObjectId(roleId);
-    }
-
-    const monthlyAggregation = await User.aggregate([
-      { $match: matchConditions },
-      {
-        $group: {
-          _id: { $month: '$createdAt' },
-          users: { $sum: 1 }
-        }
-      },
-      { $sort: { '_id': 1 } }
-    ]);
-
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-    return months.map((month, index) => {
-      const monthNumber = index + 1;
-      const found = monthlyAggregation.find(item => item._id === monthNumber);
-
-      return {
-        month,
-        users: found ? found.users : 0
-      };
-    });
   }
 
   /**
@@ -402,29 +367,16 @@ class StatisticsController {
    */
   getUserStatistics = asyncHandler(async (req: Request, res: Response) => {
     try {
-      const { year, roleId } = req.query;
-      const filterYear = year ? parseInt(year as string) : undefined;
-
       // Get all statistics using extracted methods
-      const [userCounts, departmentGroupCounts, recentlyAddedUsers, organizationsOverview, changeMetrics] = await Promise.all([
+      const [userCounts, departmentGroupCounts, recentlyAddedUsers, changeMetrics] = await Promise.all([
         this.getUserCounts(),
         this.getDepartmentAndGroupCounts(),
         this.getRecentlyAddedUsers(),
-        this.getOrganizationsOverviewData(filterYear),
         this.calculateChangeMetrics()
       ]);
 
       const { totalUsers, activeUsers, inactiveUsers } = userCounts;
       const { totalDepartments, totalGroups } = departmentGroupCounts;
-
-      // Get role breakdown (needs total users count and optional year filter)
-      const roleBreakdown = await this.getRoleBreakdown(totalUsers, filterYear);
-
-      // Generate monthly analytics data if year is provided
-      let monthlyData: MonthlyUserData[] = [];
-      if (year) {
-        monthlyData = await this.getMonthlyData(year as string, roleId as string);
-      }
 
       const statistics: EnhancedUserStatistics = {
         totalUsers,
@@ -433,10 +385,7 @@ class StatisticsController {
         totalGroups,
         totalDepartments,
         recentlyAddedUsers,
-        roleBreakdown,
-        organizationsOverview,
         changeMetrics,
-        ...(year && { monthlyData })
       };
 
       return sendSuccessResp(res, 200, USERS_MGMT_FETCHED, statistics, req);

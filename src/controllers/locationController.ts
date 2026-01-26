@@ -5,7 +5,7 @@ import LocationDao from "../dao/locationDao";
 import { AppError } from "../common/errors/AppError";
 import { sendSuccessResp, sendPaginatedResponse } from "../utils/respUtils";
 import { validateRequest } from "../validations/validationRequest";
-import { ValidatedUpdateLocation } from "../validations/schema/vLocationSchema";
+import { ValidatedUpdateLocation, ValidatedDeleteLocation } from "../validations/schema/vLocationSchema";
 import { asyncHandler } from "../common/middlewares/errorHandler";
 import { safeParseAsync, flatten } from "valibot";
 import { VSingleLocationSchema } from "../validations/schema/vLocationSchema";
@@ -55,7 +55,7 @@ class LocationController {
 
   // Get location by ID
   getLocationById = asyncHandler(async (req: Request, res: Response) => {
-    const { id } = req.params;
+    const id = req.params.id as string;
 
     if (!id) {
       throw AppError.badRequest("Location ID is required");
@@ -93,7 +93,7 @@ class LocationController {
 
   // Update location by ID - Controller only checks basic data presence
   updateLocation = asyncHandler(async (req: Request, res: Response) => {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const requestData = req.body;
 
     if (!id) {
@@ -113,9 +113,9 @@ class LocationController {
     return sendSuccessResp(res, 200, LOCATION_UPDATED, location, req);
   });
 
-  // Delete location by ID (soft delete)
+  // Delete location by ID (soft delete) - legacy endpoint
   deleteLocation = asyncHandler(async (req: Request, res: Response) => {
-    const { id } = req.params;
+    const id = req.params.id as string;
 
     if (!id) {
       throw AppError.badRequest("Location ID is required");
@@ -128,6 +128,28 @@ class LocationController {
     }
 
     return sendSuccessResp(res, 200, LOCATION_DELETED, undefined, req);
+  });
+
+  deleteLocations = asyncHandler(async (req: Request, res: Response) => {
+    const requestData = req.body;
+
+    if (!requestData || !requestData.ids) {
+      throw AppError.badRequest("IDs are required in request body");
+    }
+
+    const validatedData = await validateRequest<ValidatedDeleteLocation>("location:delete", requestData, LOCATION_VALIDATION_ERROR);
+
+    const result = await this.locationService.deleteLocations(validatedData.ids);
+
+    // Determine response status based on results
+    const statusCode = result.failedCount > 0 ? 207 : 200;
+
+    return sendSuccessResp(res, statusCode, result.message, {
+      successCount: result.successCount,
+      failedCount: result.failedCount,
+      successfulIds: result.success,
+      failedIds: result.failed
+    }, req);
   });
 
   // Get locations by current user
