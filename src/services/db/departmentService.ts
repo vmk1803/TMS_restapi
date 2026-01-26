@@ -10,14 +10,15 @@ export interface CreateDepartmentServiceData {
   name: string;
   organization: string;
   headOfDepartment?: string;
-  status?: string;
+  description?: string;
+  createdBy: string;
 }
 
 export interface UpdateDepartmentServiceData {
   name?: string;
   organization?: string;
   headOfDepartment?: string;
-  status?: string;
+  description?: string;
 }
 
 export interface DepartmentServiceQuery {
@@ -26,7 +27,6 @@ export interface DepartmentServiceQuery {
   searchString?: string;
   organizationId?: string;
   departmentId?: string;
-  status?: string;
 }
 
 export interface PaginatedDepartmentsResult {
@@ -63,7 +63,8 @@ class DepartmentService extends BaseService<IDepartment> {
     // Check for duplicate department name within the same organization
     const existingDepartment = await this.findOne({
       name: { $regex: `^${data.name}$`, $options: 'i' },
-      organization: data.organization
+      organization: data.organization,
+      deletedAt: null // Exclude soft-deleted records from duplicate check
     });
     if (existingDepartment) {
       throw AppError.badRequest('Department with this name already exists in the organization');
@@ -73,7 +74,8 @@ class DepartmentService extends BaseService<IDepartment> {
     const transformedData: any = {
       name: data.name,
       organization: new mongoose.Types.ObjectId(data.organization),
-      status: data.status || 'active'
+      description: data.description,
+      createdBy: new mongoose.Types.ObjectId(data.createdBy)
     };
 
     if (data.headOfDepartment) {
@@ -81,7 +83,13 @@ class DepartmentService extends BaseService<IDepartment> {
     }
 
     const createdDepartment = await this.create(transformedData);
-    return createdDepartment;
+
+    // Return the populated department data for consistency
+    const populatedDepartment = await this.populateDepartmentData(createdDepartment._id.toString());
+    if (!populatedDepartment) {
+      throw AppError.internal('Failed to retrieve created department');
+    }
+    return populatedDepartment;
   }
 
   async updateDepartment(id: string, data: UpdateDepartmentServiceData): Promise<IDepartment | null> {
@@ -115,7 +123,8 @@ class DepartmentService extends BaseService<IDepartment> {
       const duplicateDepartment = await this.findOne({
         name: { $regex: `^${checkName}$`, $options: 'i' },
         organization: checkOrg,
-        _id: { $ne: id } // Exclude current department
+        _id: { $ne: id }, 
+        deletedAt: null
       });
       if (duplicateDepartment) {
         throw AppError.badRequest('Department with this name already exists in the organization');
@@ -125,7 +134,7 @@ class DepartmentService extends BaseService<IDepartment> {
     // Transform update data
     const updateData: any = {};
     if (data.name !== undefined) updateData.name = data.name;
-    if (data.status !== undefined) updateData.status = data.status;
+    if (data.description !== undefined) updateData.description = data.description;
     if (data.organization !== undefined) updateData.organization = new mongoose.Types.ObjectId(data.organization);
     if (data.headOfDepartment !== undefined) {
       // Only set headOfDepartment if it's a non-empty string, otherwise set to null to clear it
@@ -134,15 +143,60 @@ class DepartmentService extends BaseService<IDepartment> {
         : null;
     }
 
+    // Update the department
     const updatedDepartment = await this.updateById(id, updateData);
-    return updatedDepartment;
+
+    if (!updatedDepartment) {
+      return null;
+    }
+
+    // Return the populated department data
+    return await this.populateDepartmentData(id);
+  }
+
+  // Helper method to populate department data
+  private async populateDepartmentData(departmentId: string): Promise<IDepartment | null> {
+    const [department] = await Department.aggregate([
+      { $match: { _id: new mongoose.Types.ObjectId(departmentId), deletedAt: null } },
+      // Populate organization
+      {
+        $lookup: {
+          from: 'organizations',
+          localField: 'organization',
+          foreignField: '_id',
+          as: 'organization'
+        }
+      },
+      { $unwind: { path: '$organization', preserveNullAndEmptyArrays: true } },
+      // Populate headOfDepartment
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'headOfDepartment',
+          foreignField: '_id',
+          as: 'headOfDepartment'
+        }
+      },
+      { $unwind: { path: '$headOfDepartment', preserveNullAndEmptyArrays: true } },
+      // Populate createdBy
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'createdBy',
+          foreignField: '_id',
+          as: 'createdBy',
+          pipeline: [{ $project: { firstName: 1, lastName: 1 } }]
+        }
+      },
+      { $unwind: { path: '$createdBy', preserveNullAndEmptyArrays: true } },
+    ]);
+
+    return department;
   }
 
   async getDepartmentById(id: string): Promise<IDepartment | null> {
     validateObjectId(id, 'Department ID');
-
-    const department = await this.findById(id, 'organization headOfDepartment');
-    return department;
+    return await this.populateDepartmentData(id);
   }
 
   async getDepartmentsPaginated(query: DepartmentServiceQuery): Promise<PaginatedDepartmentsResult> {
@@ -157,7 +211,9 @@ class DepartmentService extends BaseService<IDepartment> {
     const pipeline: any[] = [];
 
     // Initial match stage for filters
-    const matchStage: any = {};
+    const matchStage: any = {
+      deletedAt: null // Exclude soft-deleted records
+    };
 
     // Organization filter
     if (validatedQuery.organizationId) {
@@ -170,14 +226,7 @@ class DepartmentService extends BaseService<IDepartment> {
       matchStage._id = new mongoose.Types.ObjectId(validatedQuery.departmentId);
     }
 
-    // Status filter
-    if (validatedQuery.status) {
-      matchStage.status = validatedQuery.status;
-    }
-
-    if (Object.keys(matchStage).length > 0) {
-      pipeline.push({ $match: matchStage });
-    }
+    pipeline.push({ $match: matchStage });
 
     // Lookup organization
     pipeline.push({
@@ -241,6 +290,39 @@ class DepartmentService extends BaseService<IDepartment> {
     pipeline.push({ $skip: skip });
     pipeline.push({ $limit: pageSize });
 
+    // Add active user count per department (only for the current page)
+    pipeline.push({
+      $lookup: {
+        from: 'users',
+        let: { deptId: '$_id' },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $and: [
+                  { $eq: ['$organizationDetails.department', '$$deptId'] },
+                  { $eq: ['$deletedAt', null] },
+                  { $eq: ['$active', true] }
+                ]
+              }
+            }
+          },
+          { $count: 'count' }
+        ],
+        as: 'usersCountAgg'
+      }
+    });
+
+    pipeline.push({
+      $addFields: {
+        usersCount: {
+          $ifNull: [{ $arrayElemAt: ['$usersCountAgg.count', 0] }, 0]
+        }
+      }
+    });
+
+    pipeline.push({ $project: { usersCountAgg: 0 } });
+
     // Execute aggregation
     const records = await this.model.aggregate(pipeline);
 
@@ -268,7 +350,10 @@ class DepartmentService extends BaseService<IDepartment> {
     const processedQuery = this.processSearchQuery(validatedQuery);
 
     // Build filter for BaseService
-    const filter: any = { organization: organizationId };
+    const filter: any = {
+      organization: organizationId,
+      deletedAt: null // Exclude soft-deleted records
+    };
     if (processedQuery.searchString) {
       filter.name = { $regex: processedQuery.searchString, $options: 'i' };
     }
@@ -310,7 +395,7 @@ class DepartmentService extends BaseService<IDepartment> {
 
   async getAllDepartments(): Promise<IDepartment[]> {
     const departments = await this.findAll(
-      {},
+      { deletedAt: null }, // Exclude soft-deleted records
       { createdAt: -1 },
       'organization headOfDepartment'
     );
@@ -323,10 +408,12 @@ class DepartmentService extends BaseService<IDepartment> {
   async exportDepartmentsAsCSV(query: Omit<DepartmentServiceQuery, 'page' | 'pageSize'>): Promise<any[]> {
     try {
       const processedQuery = this.processSearchQuery(query);
-      
+
       // Build aggregation pipeline similar to getDepartmentsPaginated but without pagination
       const pipeline: any[] = [];
-      const matchStage: any = {};
+      const matchStage: any = {
+        deletedAt: null // Exclude soft-deleted records
+      };
 
       if (processedQuery.organizationId) {
         matchStage.organization = new mongoose.Types.ObjectId(processedQuery.organizationId);
@@ -335,13 +422,8 @@ class DepartmentService extends BaseService<IDepartment> {
         validateObjectId(processedQuery.departmentId, 'Department ID');
         matchStage._id = new mongoose.Types.ObjectId(processedQuery.departmentId);
       }
-      if (processedQuery.status) {
-        matchStage.status = processedQuery.status;
-      }
 
-      if (Object.keys(matchStage).length > 0) {
-        pipeline.push({ $match: matchStage });
-      }
+      pipeline.push({ $match: matchStage });
 
       // Lookup organization
       pipeline.push({
@@ -394,19 +476,30 @@ class DepartmentService extends BaseService<IDepartment> {
       pipeline.push({ $sort: { createdAt: -1 } });
 
       const records = await this.model.aggregate(pipeline);
-      
+
       // Transform data to return only required fields for CSV export
       return records.map(department => ({
         'Department Name': department.name,
         'Organization': department.organization?.organizationName || 'N/A',
-        'Head of Department': department.headOfDepartment 
+        'Description': department.description || 'N/A',
+        'Head of Department': department.headOfDepartment
           ? `${department.headOfDepartment.fname || department.headOfDepartment.firstName || ''} ${department.headOfDepartment.lname || department.headOfDepartment.lastName || ''}`.trim()
           : 'N/A',
-        'Status': department.status ? department.status.charAt(0).toUpperCase() + department.status.slice(1) : 'Active',
         'Created Date': department.createdAt ? new Date(department.createdAt).toLocaleDateString('en-US') : 'N/A'
       }));
     } catch (error) {
       throw AppError.internal('Failed to export departments');
+    }
+  }
+
+  /**
+   * Bulk soft delete multiple departments
+   */
+  async bulkSoftDelete(ids: string[]): Promise<{ success: string[], failed: string[], successCount: number, failedCount: number }> {
+    try {
+      return await this.softDeleteByIds(ids, 'deletedAt');
+    } catch (error: any) {
+      throw this.handleError(error, 'bulkSoftDelete');
     }
   }
 }

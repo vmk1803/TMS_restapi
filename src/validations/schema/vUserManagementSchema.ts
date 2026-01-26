@@ -9,10 +9,12 @@ import {
   object,
   optional,
   pipe,
+  record,
   string,
   regex,
   union,
-  literal
+  literal,
+  unknown
 } from "valibot";
 import {
   USER_FIRST_NAME_REQUIRED,
@@ -177,7 +179,23 @@ const VUpdateUserSchema = object({
   assets: optional(array(VAssetSchema))
 });
 
-export { VCreateUserSchema, VUpdateUserSchema, VOrganizationDetailsSchema, VAssetSchema };
+// Bulk Update User Schema
+const VBulkUpdateUsersSchema = object({
+  userIds: pipe(
+    array(pipe(
+      string("User ID must be a string"),
+      custom((value) => isValidObjectId(value as string), "Invalid user ID")
+    )),
+    minLength(1, "At least one user ID is required")
+  ),
+  updates: pipe(
+    record(string(), unknown()),
+    custom((value) => Object.keys(value).length > 0, "At least one update field is required")
+  )
+});
+
+export { VCreateUserSchema, VUpdateUserSchema, VBulkUpdateUsersSchema, VOrganizationDetailsSchema, VAssetSchema };
 
 export type ValidatedCreateUser = InferOutput<typeof VCreateUserSchema>;
 export type ValidatedUpdateUser = InferOutput<typeof VUpdateUserSchema>;
+export type ValidatedBulkUpdateUsers = InferOutput<typeof VBulkUpdateUsersSchema>;

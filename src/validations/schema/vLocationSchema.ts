@@ -1,4 +1,4 @@
-import { array, minLength, nonEmpty, nullish, object, pipe, string, InferOutput } from "valibot";
+import { array, minLength, nonEmpty, nullish, object, pipe, string, union, InferOutput } from "valibot";
 import { ADDRESS_LINE_INVALID, ADDRESSES_REQUIRED, CITY_INVALID, CITY_REQUIRED, COUNTRY_INVALID, COUNTRY_REQUIRED, CREATED_BY_REQUIRED, STATE_INVALID, STREET_ADDRESS_INVALID, STREET_ADDRESS_REQUIRED, TIME_ZONE_INVALID, TIME_ZONE_REQUIRED, ZIP_INVALID, ZIP_REQUIRED } from "../../constants/appMessages";
 
 const VLocationAddressSchema = object({
@@ -47,8 +47,28 @@ const VUpdateLocationSchema = object({
   )
 });
 
-export { VLocationSchema, VUpdateLocationSchema, VLocationAddressSchema, VSingleLocationSchema };
+// Delete schema for both single and bulk operations
+const VDeleteLocationSchema = object({
+  ids: union([
+    pipe(
+      string('ID must be a string'),
+      nonEmpty('ID cannot be empty')
+    ),
+    pipe(
+      array(
+        pipe(
+          string('Each ID must be a string'),
+          nonEmpty('Each ID cannot be empty')
+        )
+      ),
+      minLength(1, 'At least one ID is required')
+    )
+  ])
+});
+
+export { VLocationSchema, VUpdateLocationSchema, VLocationAddressSchema, VSingleLocationSchema, VDeleteLocationSchema };
 
 export type ValidatedLocation = InferOutput<typeof VLocationSchema>;
 export type ValidatedUpdateLocation = InferOutput<typeof VUpdateLocationSchema>;
 export type ValidatedLocationAddress = InferOutput<typeof VLocationAddressSchema>;
+export type ValidatedDeleteLocation = InferOutput<typeof VDeleteLocationSchema>;

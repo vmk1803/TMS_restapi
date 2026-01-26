@@ -19,11 +19,16 @@ class DepartmentController {
       throw AppError.badRequest("Name and organization are required");
     }
 
+    if (!requestData.description || !String(requestData.description).trim()) {
+      throw AppError.badRequest("Description is required");
+    }
+
     const department = await this.departmentService.createDepartment({
       name: requestData.name,
       organization: requestData.organization,
       headOfDepartment: requestData.headOfDepartment,
-      status: requestData.status
+      description: requestData.description,
+      createdBy: user._id
     });
 
     return sendSuccessResp(res, 201, DEPARTMENT_CREATED, department, req);
@@ -31,9 +36,8 @@ class DepartmentController {
 
   // Update department
   updateDepartment = asyncHandler(async (req: Request, res: Response) => {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const requestData = req.body;
-    console.log("🚀 ~ DepartmentController ~ requestData:", requestData)
 
     if (!id) {
       throw AppError.badRequest("Department ID is required");
@@ -43,7 +47,7 @@ class DepartmentController {
       name: requestData.name,
       organization: requestData.organization,
       headOfDepartment: requestData.headOfDepartment,
-      status: requestData.status
+      description: requestData.description
     });
 
     if (!department) {
@@ -55,7 +59,7 @@ class DepartmentController {
 
   // Get department by ID
   getDepartmentById = asyncHandler(async (req: Request, res: Response) => {
-    const { id } = req.params;
+    const id = req.params.id as string;
 
     if (!id) {
       throw AppError.badRequest("Department ID is required");
@@ -77,7 +81,6 @@ class DepartmentController {
     const searchString = req.query.search_string as string | undefined;
     const organizationId = req.query.organization_id as string | undefined;
     const departmentId = req.query.department_id as string | undefined;
-    const status = req.query.status as string | undefined;
 
     const query = {
       page,
@@ -85,7 +88,6 @@ class DepartmentController {
       searchString,
       organizationId,
       departmentId,
-      status
     };
 
     const result = await this.departmentService.getDepartmentsPaginated(query);
@@ -95,7 +97,7 @@ class DepartmentController {
 
   // Delete department
   deleteDepartment = asyncHandler(async (req: Request, res: Response) => {
-    const { id } = req.params;
+    const id = req.params.id as string;
 
     if (!id) {
       throw AppError.badRequest("Department ID is required");
@@ -121,13 +123,11 @@ class DepartmentController {
     const searchString = req.body.searchString as string | undefined;
     const organizationId = req.body.organizationId as string | undefined;
     const departmentId = req.body.departmentId as string | undefined;
-    const status = req.body.status as string | undefined;
 
     const query = {
       searchString,
       organizationId,
-      departmentId,
-      status
+      departmentId
     };
 
     const departments = await this.departmentService.exportDepartmentsAsCSV(query);
@@ -137,7 +137,7 @@ class DepartmentController {
 
   // Get departments by organization ID
   getDepartmentsByOrganization = asyncHandler(async (req: Request, res: Response) => {
-    const { orgId } = req.params;
+    const orgId = req.params.orgId as string;
     const page = +(req.query.page as string) || 1;
     const pageSize = +(req.query.page_size as string) || 10;
     const searchString = req.query.search_string as string | undefined;
@@ -155,6 +155,25 @@ class DepartmentController {
     const result = await this.departmentService.getDepartmentsByOrganizationId(orgId, query);
 
     return sendPaginatedResponse(res, DEPARTMENTS_FETCHED, result.records, result.pagination_info, req);
+  });
+
+  // Bulk operations on departments
+  bulkOperation = asyncHandler(async (req: Request, res: Response) => {
+    const { ids, operation } = req.body;
+
+    // Validation
+    if (!Array.isArray(ids) || ids.length === 0) {
+      throw AppError.badRequest("IDs array is required and cannot be empty");
+    }
+
+    if (!operation || !['delete'].includes(operation)) {
+      throw AppError.badRequest("Valid operation is required: 'delete'");
+    }
+
+    const result = await this.departmentService.bulkSoftDelete(ids);
+
+    const message = `Bulk ${operation} operation completed`;
+    return sendSuccessResp(res, 200, message, result, req);
   });
 }
 

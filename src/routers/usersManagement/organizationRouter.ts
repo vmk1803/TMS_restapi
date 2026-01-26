@@ -14,6 +14,7 @@ organizationRouter.get('/', organizationController.getOrganizationsPaginated);
 
 // Create, update, delete - only for Admin/Manager
 organizationRouter.post('/', authenticateToken, checkUserRole(['admin', 'super_admin', 'hod', 'user']), organizationController.createOrganization);
+organizationRouter.post('/bulk-update', authenticateToken, checkUserRole(['admin', 'super_admin', 'hod', 'user']), organizationController.bulkUpdateStatus);
 organizationRouter.patch('/:id', authenticateToken, checkUserRole(['admin', 'super_admin', 'hod', 'user']), organizationController.updateOrganization);
 organizationRouter.delete('/:id', authenticateToken, checkUserRole(['admin', 'super_admin', 'hod', 'user']), organizationController.deleteOrganization);
 

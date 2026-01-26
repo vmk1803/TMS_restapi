@@ -14,11 +14,13 @@ class RoleController {
         const user = (req as any).user_payload;
         const requestData = req.body;
 
+        const createdBy = user?._id ? String(user._id) : undefined;
+
         const role = await this.roleService.createRole({
             name: requestData.name,
             description: requestData.description,
             permissions: requestData.permissions,
-            createdBy: user?.user_id
+            createdBy
         });
 
         return sendSuccessResp(res, 201, ROLE_CREATED, role, req);

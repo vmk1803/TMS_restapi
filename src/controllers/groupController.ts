@@ -58,7 +58,7 @@ class GroupController {
   getGroupById = asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
 
-    if (!id) {
+    if (!id || Array.isArray(id)) {
       throw AppError.badRequest("Group ID is required");
     }
 
@@ -77,12 +77,14 @@ class GroupController {
     const pageSize = +(req.query.page_size as string) || 10;
     const searchString = req.query.search_string as string | undefined;
     const department = req.query.department as string | undefined;
+    const group = req.query.group as string | undefined;
 
     const query = {
       page,
       pageSize,
       search_string: searchString,
-      department
+      department,
+      group
     };
 
     const result = await this.groupService.getGroupsPaginated(query);
@@ -95,18 +97,18 @@ class GroupController {
     const { id } = req.params;
     const requestData = req.body;
 
-    if (!id) {
+    if (!id || Array.isArray(id)) {
       throw AppError.badRequest("Group ID is required");
     }
 
     const validatedData = await validateRequest<ValidatedUpdateGroup>("group:update", requestData, GROUP_VALIDATION_ERROR);
 
     const group = await this.groupService.updateGroup(id, {
-      name: validatedData.name || undefined,
-      department: validatedData.department || undefined,
-      manager: validatedData.manager || undefined,
-      members: validatedData.members || undefined,
-      description: validatedData.description || undefined
+      name: validatedData.name,
+      department: validatedData.department,
+      manager: validatedData.manager,
+      members: validatedData.members,
+      description: validatedData.description
     });
 
     if (!group) {
@@ -120,7 +122,7 @@ class GroupController {
   deleteGroup = asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
 
-    if (!id) {
+    if (!id || Array.isArray(id)) {
       throw AppError.badRequest("Group ID is required");
     }
 
@@ -145,16 +147,42 @@ class GroupController {
     const searchString = req.body.search_string as string | undefined;
     const department = req.body.department as string | undefined;
     const status = req.body.status as string | undefined;
+    const group = req.body.group as string | undefined;
 
     const query = {
       search_string: searchString,
       department,
-      status
+      status,
+      group
     };
+
+    console.log(query, 'query');
 
     const groups = await this.groupService.exportGroupsAsCSV(query);
     
     return sendCSVResponse(res, groups, 'groups');
+  });
+
+  // Bulk operations on groups (extensible)
+  bulkOperation = asyncHandler(async (req: Request, res: Response) => {
+    const { ids, operation } = req.body;
+    console.log(ids, operation, 'bulk operation body');
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      throw AppError.badRequest("IDs array is required and cannot be empty");
+    }
+
+    if (!operation || !['delete'].includes(operation)) {
+      throw AppError.badRequest("Valid operation is required: 'delete'");
+    }
+
+    let result;
+    if (operation === 'delete') {
+      result = await this.groupService.bulkSoftDelete(ids);
+    }
+
+    const message = `Bulk ${operation} operation completed`;
+    return sendSuccessResp(res, 200, message, result, req);
   });
 
   // Get group members with pagination and filters
@@ -166,7 +194,7 @@ class GroupController {
     const department = req.query.department as string | undefined;
     const status = req.query.status as string | undefined;
 
-    if (!id) {
+    if (!id || Array.isArray(id)) {
       throw AppError.badRequest("Group ID is required");
     }
 

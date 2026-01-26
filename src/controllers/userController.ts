@@ -15,7 +15,7 @@ import { AppError } from '../common/errors/AppError';
 import { sendSuccessResp, sendPaginatedResponse } from '../utils/respUtils';
 import { sendCSVResponse } from '../utils/csvGenerator';
 import { safeParseAsync, flatten } from 'valibot';
-import { VCreateUserSchema, VUpdateUserSchema } from '../validations/schema/vUserManagementSchema';
+import { VCreateUserSchema, VUpdateUserSchema, VBulkUpdateUsersSchema } from '../validations/schema/vUserManagementSchema';
 
 class UserController {
   private userService = new UserService();
@@ -285,6 +285,40 @@ class UserController {
   };
 
   /**
+   * Bulk operations on users (extensible)
+   */
+  bulkOperation = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const user = (req as any).user_payload;
+      let { ids, operation, updates } = req.body;
+
+      if (!Array.isArray(ids) || ids.length === 0) {
+        throw AppError.badRequest('IDs array is required and cannot be empty');
+      }
+
+      if (!operation || !['update'].includes(operation)) {
+        throw AppError.badRequest("Valid operation is required: 'update'");
+      }
+
+      if (operation === 'update' && !updates) {
+        throw AppError.badRequest('Updates object is required for update operation');
+      }
+
+      let result;
+      if (operation === 'update') {
+        result = await this.userService.bulkUpdateUsers(ids, updates, user._id);
+        // Return count of updated users for consistency
+        result = { updatedCount: result.length };
+      }
+
+      const message = `Bulk ${operation} operation completed`;
+      return sendSuccessResp(res, 200, message, result, req);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
    * Export users as CSV
    */
   exportUsersCSV = async (req: Request, res: Response, next: NextFunction) => {
@@ -306,7 +340,7 @@ class UserController {
       console.log("Export Users CSV Query:", query);
 
       const users = await this.userService.exportUsersAsCSV(query);
-      
+
       return sendCSVResponse(res, users, 'users');
     } catch (error) {
       next(error);

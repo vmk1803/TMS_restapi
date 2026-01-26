@@ -355,12 +355,77 @@ class UserService extends BaseService<IUser> {
     }
 
     /**
+     * Bulk update users
+     */
+    async bulkUpdateUsers(userIds: string[], updates: Record<string, any>, updatedBy: string): Promise<IUser[]> {
+        const session = await mongoose.startSession();
+        session.startTransaction();
+
+        try {
+            // Validate all users exist
+            const users = await this.model.find({
+                _id: { $in: userIds },
+                deletedAt: null
+            }).session(session);
+
+            if (users.length !== userIds.length) {
+                throw AppError.notFound('One or more users not found');
+            }
+
+            // Build update object
+            const updateData: any = {};
+
+            // Handle other direct fields
+            Object.keys(updates).forEach(key => {
+                updateData[key] = updates[key];
+            });
+
+            // Update all users
+            const updatedUsers = await this.model.updateMany(
+                { _id: { $in: userIds }, deletedAt: null },
+                updateData,
+                { session }
+            );
+
+            // Get updated users for logging
+            const finalUsers = await this.model.find({
+                _id: { $in: userIds },
+                deletedAt: null
+            }).session(session);
+
+            // Log activity for each user
+            for (const user of finalUsers) {
+                const oldUser = users.find(u => u._id.toString() === user._id.toString());
+                if (oldUser) {
+                    await this.logActivity({
+                        userId: user._id,
+                        action: 'UPDATE',
+                        performedBy: new mongoose.Types.ObjectId(updatedBy),
+                        oldData: this.sanitizeUserForLogging(oldUser),
+                        newData: this.sanitizeUserForLogging(user),
+                        changes: this.getChanges(oldUser, user)
+                    });
+                }
+            }
+
+            await session.commitTransaction();
+            return finalUsers;
+        } catch (error: any) {
+            await session.abortTransaction();
+            if (error.statusCode) throw error;
+            throw this.handleError(error, 'bulkUpdateUsers');
+        } finally {
+            session.endSession();
+        }
+    }
+
+    /**
      * Export all users as CSV with filters applied (no pagination)
      */
     async exportUsersAsCSV(query: Omit<UserServiceQuery, 'page' | 'pageSize'>): Promise<any[]> {
         try {
             const users = await this.userDao.getUsersForExport(query);
-            
+
             // Transform data to return only required fields for CSV export
             return users.map(user => ({
                 'Name': `${user.firstName || user.fname || ''} ${user.lastName || user.lname || ''}`.trim() || user.email.split('@')[0],

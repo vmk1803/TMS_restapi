@@ -12,6 +12,9 @@ groupRouter.post('/', isAuthorized, requireUserRoleForLocations, groupController
 groupRouter.patch('/:id', isAuthorized, requireUserRoleForLocations, groupController.updateGroup);
 groupRouter.delete('/:id', isAuthorized, requireUserRoleForLocations, groupController.deleteGroup);
 
+// Bulk operations (delete now; extensible for future operations)
+groupRouter.post('/bulk-update', isAuthorized, requireUserRoleForLocations, groupController.bulkOperation);
+
 // Export groups as CSV
 groupRouter.post('/export-csv', isAuthorized, requireUserOrAdminRole, groupController.exportGroupsCSV);
 

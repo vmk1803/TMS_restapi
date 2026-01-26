@@ -128,7 +128,6 @@ class LocationService extends BaseService<ILocation> {
     ensureExists(existingLocation, 'Location', id);
 
     const transformedData = this.transformUpdateData(data);
-    console.log("🚀 ~ LocationService ~ updateLocation ~ transformedData:", transformedData, id)
     const updatedLocation = await this.updateById(id, transformedData, undefined, 'createdBy');
 
     return updatedLocation;
@@ -144,6 +143,59 @@ class LocationService extends BaseService<ILocation> {
     // Check dependencies (additional business rules can be added here)
 
     return await this.softDeleteById(id);
+  }
+
+  async deleteLocations(input: string | string[]): Promise<{ success: string[], failed: string[], successCount: number, failedCount: number, message: string }> {
+    // Normalize input to array
+    const ids = Array.isArray(input) ? input : [input];
+    
+    // Validate each ID
+    const validationResults = {
+      validIds: [] as string[],
+      invalidIds: [] as string[]
+    };
+
+    for (const id of ids) {
+      try {
+        validateObjectId(id, 'Location ID');
+        validationResults.validIds.push(id);
+      } catch (error) {
+        validationResults.invalidIds.push(id);
+      }
+    }
+
+    if (validationResults.invalidIds.length > 0) {
+      throw AppError.badRequest(`Invalid location IDs: ${validationResults.invalidIds.join(', ')}`);
+    }
+
+    // Check if locations exist before deleting
+    const existenceChecks = await Promise.all(
+      validationResults.validIds.map(async (id) => {
+        const exists = await this.findById(id);
+        return { id, exists: !!exists };
+      })
+    );
+
+    const nonExistentIds = existenceChecks
+      .filter(check => !check.exists)
+      .map(check => check.id);
+
+    if (nonExistentIds.length > 0) {
+      throw AppError.notFound(`Locations not found: ${nonExistentIds.join(', ')}`);
+    }
+
+    // Perform bulk soft delete
+    const deleteResults = await this.softDeleteByIds(validationResults.validIds);
+
+    const totalRequested = ids.length;
+    const message = totalRequested === 1 
+      ? deleteResults.successCount === 1 ? 'Location deleted successfully' : 'Failed to delete location'
+      : `${deleteResults.successCount}/${totalRequested} locations deleted successfully`;
+
+    return {
+      ...deleteResults,
+      message
+    };
   }
 
   async getLocationsByUserId(userId: string): Promise<ILocation[]> {

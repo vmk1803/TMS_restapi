@@ -116,8 +116,14 @@ class RoleService extends BaseService<IRole> {
   async getRoleById(id: string): Promise<IRole | null> {
     validateObjectId(id, 'Role ID');
 
-    const role = await this.findById(id, 'createdBy');
-    return role;
+    const role = await Role.findById(id)
+      .populate({
+        path: 'createdBy',
+        select: 'firstName lastName'
+      })
+      .exec();
+
+    return role as any;
   }
 
   async getRolesPaginated(query: RoleServiceQuery): Promise<PaginatedRolesResult> {
@@ -142,7 +148,7 @@ class RoleService extends BaseService<IRole> {
 
       // Filter roles that have at least one permission in the specified section
       const fieldPath = `permissions.${processedQuery.permissionSection}`;
-      matchFilter[fieldPath] = { $exists: true };
+      matchFilter[fieldPath] = { $exists: true, $not: { $size: 0 } };
     }
 
     // Calculate pagination
@@ -202,6 +208,7 @@ class RoleService extends BaseService<IRole> {
 
     // Execute aggregation for data
     const data = await this.model.aggregate(aggregationPipeline);
+    console.log("🚀 ~ RoleService ~ getRolesPaginated ~ data:", data)
 
     // Get total count for pagination
     const totalCountResult = await this.model.aggregate([
@@ -280,7 +287,7 @@ class RoleService extends BaseService<IRole> {
           throw AppError.badRequest('Invalid permission section');
         }
         const fieldPath = `permissions.${processedQuery.permissionSection}`;
-        matchFilter[fieldPath] = { $exists: true };
+        matchFilter[fieldPath] = { $exists: true, $not: { $size: 0 } };
       }
 
       // Aggregation pipeline without pagination

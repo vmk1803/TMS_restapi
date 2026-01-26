@@ -6,7 +6,7 @@ export interface IAsset {
 }
 
 export interface IOrganizationDetails {
-  role: mongoose.Types.ObjectId;
+  role: mongoose.Types.ObjectId | null;
   department: mongoose.Types.ObjectId;
   organization: mongoose.Types.ObjectId;
   location: mongoose.Types.ObjectId;
@@ -80,7 +80,7 @@ const OrganizationDetailsSchema = new Schema<IOrganizationDetails>(
     role: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Role',
-      required: true
+      default: null
     },
     department: {
       type: mongoose.Schema.Types.ObjectId,

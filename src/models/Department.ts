@@ -4,9 +4,11 @@ export interface IDepartment extends Document {
   name: string;
   organization: mongoose.Types.ObjectId;
   headOfDepartment?: mongoose.Types.ObjectId;
-  status: string;
+  description?: string;
+  createdBy: mongoose.Types.ObjectId;
   createdAt?: Date;
   updatedAt?: Date;
+  deletedAt?: Date;
 }
 
 const DepartmentSchema = new Schema<IDepartment>({
@@ -25,15 +27,29 @@ const DepartmentSchema = new Schema<IDepartment>({
     ref: 'User',
     required: false
   },
-  status: {
+  description: {
     type: String,
-    required: true,
-    default: 'active',
+    required: false,
     trim: true
+  },
+  createdBy: {
+    type: Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
   }
 }, {
   timestamps: true
 });
+
+// Soft Delete
+DepartmentSchema.add({
+  deletedAt: {
+    type: Date,
+  }
+});
+
+// Add index for soft delete
+DepartmentSchema.index({ deletedAt: 1 });
 
 // Compound unique index to ensure department name is unique within each organization
 DepartmentSchema.index({ name: 1, organization: 1 }, { unique: true });
